@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Google AI Studio App</title>
+  </head>
+  <body>
+    <div id="root">
+      <style>
+        .loader-wrapper { display: flex; align-items: center; justify-content: center; height: 100vh; background-color: #f9fafb; font-family: sans-serif;}
+        .spinner { border: 4px solid #e5e7eb; border-top: 4px solid #2563eb; border-radius: 50%; width: 50px; height: 50px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @media (prefers-color-scheme: dark) {
+          .loader-wrapper { background-color: #111827; }
+          .spinner { border-color: #374151; border-top-color: #3b82f6; }
+        }
+      </style>
+      <div class="loader-wrapper">
+        <div class="spinner"></div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
