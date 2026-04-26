@@ -367,10 +367,16 @@ export default function UserCabinet() {
                     </div>
                     <button 
                       onClick={() => setShowOrderDetails(showOrderDetails === order.id ? null : order.id)}
-                      className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 hover:border-gray-300 transition-all"
+                      className="px-4 py-2 rounded-full text-[12px] font-black uppercase tracking-widest flex items-center gap-2 border-2 border-primary/20 bg-primary/5 text-primary hover:bg-primary hover:text-white transition-all shadow-sm group/btn"
                     >
-                      <Package className="w-3.5 h-3.5" />
-                      {language === 'ru' ? 'Информация о товаре' : 'Mahsulot ma\'lumotlari'}
+                      <Package className="w-4 h-4" />
+                      {language === 'ru' ? 'Информация о заказе' : 'Buyurtma ma\'lumotlari'}
+                      <motion.div
+                        animate={{ rotate: showOrderDetails === order.id ? 180 : 0 }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        <ChevronUp className="w-4 h-4" />
+                      </motion.div>
                     </button>
                   </div>
 
@@ -787,7 +793,7 @@ export default function UserCabinet() {
                     </div>
                   )}
                   <div className="mt-4 md:mt-auto flex justify-end">
-                    {showOrderDetails === order.id ? <ChevronUp className="w-5 h-5 text-primary" /> : <ChevronDown className="w-5 h-5 text-gray-400 animate-bounce" />}
+                    {showOrderDetails === order.id ? <ChevronUp className="w-5 h-5 text-primary" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
                   </div>
                 </div>
               </div>

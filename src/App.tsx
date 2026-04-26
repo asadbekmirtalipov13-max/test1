@@ -17,8 +17,9 @@ import { useState, useEffect, useMemo } from 'react';
 import Fuse from 'fuse.js';
 import { db } from './firebase';
 import { doc, getDocFromServer, deleteDoc } from 'firebase/firestore';
+import { motion, AnimatePresence } from 'motion/react';
 
-import { Eye, Loader2, Search } from 'lucide-react';
+import { Eye, Loader2, Search, ShieldCheck } from 'lucide-react';
 
 function LanguageModal({ onComplete }: { onComplete: () => void }) {
   const { setLanguage, language } = useLanguage();
@@ -92,7 +93,7 @@ function LanguageModal({ onComplete }: { onComplete: () => void }) {
 
 function AppContent() {
   const { t, language } = useLanguage();
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, loading } = useAuth();
   const [showAdmin, setShowAdmin] = useState(false);
   const [showCabinet, setShowCabinet] = useState(false);
   const [showLangModal, setShowLangModal] = useState(false);
@@ -100,6 +101,20 @@ function AppContent() {
   const { about, heroTitle, loading: settingsLoading, heroSlides } = useSiteSettings();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [loginSuccess, setLoginSuccess] = useState(false);
+
+  useEffect(() => {
+    if (user && !loading) {
+       const hasShown = sessionStorage.getItem('loginSuccessShown');
+       if (!hasShown) {
+          setLoginSuccess(true);
+          sessionStorage.setItem('loginSuccessShown', 'true');
+          setTimeout(() => setLoginSuccess(false), 5000);
+       }
+    } else if (!user) {
+       sessionStorage.removeItem('loginSuccessShown');
+    }
+  }, [user, loading]);
 
   const filteredProducts = useMemo(() => {
     let result = products;
@@ -190,6 +205,23 @@ function AppContent() {
   if (showAdmin) {
     return (
       <div className="min-h-screen bg-gray-50 font-sans text-gray-900 flex flex-col transition-colors duration-200">
+        <AnimatePresence>
+          {loginSuccess && (
+            <motion.div
+              initial={{ opacity: 0, y: -100 }}
+              animate={{ opacity: 1, y: 50 }}
+              exit={{ opacity: 0, y: -100 }}
+              className="fixed top-0 left-0 right-0 z-[100] flex justify-center pointer-events-none"
+            >
+              <div className="bg-green-500 text-white px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-3 border-4 border-white">
+                <ShieldCheck className="w-6 h-6" />
+                <div className="font-black uppercase tracking-widest text-sm text-center">
+                  {language === 'ru' ? 'Вы успешно вошли!' : 'Siz muvaffaqiyatli kirdingiz!'}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
         <Navbar />
         <CartDrawer />
         <div className="flex-grow py-20">
@@ -203,6 +235,23 @@ function AppContent() {
   if (showCabinet) {
     return (
       <div className="min-h-screen bg-gray-50 font-sans text-gray-900 flex flex-col transition-colors duration-200">
+        <AnimatePresence>
+          {loginSuccess && (
+            <motion.div
+              initial={{ opacity: 0, y: -100 }}
+              animate={{ opacity: 1, y: 50 }}
+              exit={{ opacity: 0, y: -100 }}
+              className="fixed top-0 left-0 right-0 z-[100] flex justify-center pointer-events-none"
+            >
+              <div className="bg-green-500 text-white px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-3 border-4 border-white">
+                <ShieldCheck className="w-6 h-6" />
+                <div className="font-black uppercase tracking-widest text-sm text-center">
+                  {language === 'ru' ? 'Вы успешно вошли!' : 'Siz muvaffaqiyatli kirdingiz!'}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
         <Navbar />
         <CartDrawer />
         <div className="flex-grow">
@@ -217,6 +266,23 @@ function AppContent() {
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900 flex flex-col transition-colors duration-200 overflow-x-hidden">
+      <AnimatePresence>
+        {loginSuccess && (
+          <motion.div
+            initial={{ opacity: 0, y: -100 }}
+            animate={{ opacity: 1, y: 50 }}
+            exit={{ opacity: 0, y: -100 }}
+            className="fixed top-0 left-0 right-0 z-[100] flex justify-center pointer-events-none"
+          >
+            <div className="bg-green-500 text-white px-8 py-4 rounded-2xl shadow-2xl flex items-center gap-3 border-4 border-white">
+              <ShieldCheck className="w-6 h-6" />
+              <div className="font-black uppercase tracking-widest text-sm text-center">
+                {language === 'ru' ? 'Вы успешно вошли!' : 'Siz muvaffaqiyatli kirdingiz!'}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {showLangModal && <LanguageModal onComplete={() => setShowLangModal(false)} />}
       <Navbar />
       <CartDrawer />

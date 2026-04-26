@@ -6,7 +6,7 @@ import { GoogleGenAI } from '@google/genai';
 import { useStoreData, Category, Product } from '../hooks/useStoreData';
 import { useLanguage } from '../context/LanguageContext';
 import { useSiteSettings, HeroSlide, PaymentMethod } from '../context/SiteSettingsContext';
-import { Upload, Plus, Trash2, Edit, Save, Search, FileText, CheckCircle, Clock, MapPin, PhoneCall, Link2, ShoppingCart, User, Users, Settings, CreditCard, ShieldCheck, Globe, X, ChevronUp, ChevronDown, Share2, Tag } from 'lucide-react';
+import { Upload, Plus, Trash2, Edit, Save, Search, FileText, CheckCircle, Clock, MapPin, PhoneCall, Link2, ShoppingCart, User, Users, Settings, CreditCard, ShieldCheck, Globe, X, ChevronUp, ChevronDown, Share2, Tag, Loader } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 const IMGBB_API_KEY = (import.meta as any).env?.VITE_IMGBB_API_KEY || '99ba8daf990b634a58e3d47eae7cb907';
@@ -73,6 +73,28 @@ export default function AdminPanel() {
     setIsConfirmOpen(true);
   };
   
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = new Date();
+      orders.forEach(async (order) => {
+        if (order.status === 'confirmed' && order.targetReadyAt) {
+          const readyAt = new Date(order.targetReadyAt);
+          if (now >= readyAt) {
+            try {
+              await updateDoc(doc(db, 'orders', order.id), { 
+                status: 'ready',
+                siteComment: 'Ваш заказ автоматически переведен в статус "Готов"! Можете забирать.' 
+              });
+            } catch (err) {
+              console.error("Auto-ready error:", err);
+            }
+          }
+        }
+      });
+    }, 60000); // Check every minute
+    return () => clearInterval(interval);
+  }, [orders]);
+
   // AI Import state
   const [aiIsProcessing, setAiIsProcessing] = useState(false);
   const [aiFile, setAiFile] = useState<File | null>(null);
@@ -96,6 +118,8 @@ export default function AdminPanel() {
   // Store management state
   const [uploadingImage, setUploadingImage] = useState<string | null>(null);
   const [uploadingImg, setUploadingImg] = useState(false);
+  const [activeOrderAction, setActiveOrderAction] = useState<{ id: string, type: 'confirm' | 'reject' } | null>(null);
+  const [localReadinessValue, setLocalReadinessValue] = useState('');
   
   // Edit states
   const [editingCategory, setEditingCategory] = useState<any | null>(null);
@@ -1085,7 +1109,7 @@ export default function AdminPanel() {
                     className="w-full py-5 bg-primary text-white rounded-2xl font-black uppercase tracking-[0.2em] shadow-2xl hover:shadow-primary/40 transition-all disabled:opacity-50 flex items-center justify-center gap-4 border-4 border-white"
                   >
                     {customizationSaving ? (
-                      <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }} className="w-6 h-6 border-4 border-white/20 border-t-white rounded-full" />
+                      <Loader className="w-6 h-6 animate-spin text-white" />
                     ) : (
                       <Save className="w-6 h-6" />
                     )}
@@ -1425,24 +1449,33 @@ export default function AdminPanel() {
 
                     const apiKey = process.env.GEMINI_API_KEY;
                     if (!apiKey) {
-                      throw new Error('Голосовой помошник (Gemini API) не настроен. Пожалуйста, добавьте GEMINI_API_KEY в настройках проекта.');
+                      throw new Error('Модуль распознавания не настроен. Пожалуйста, добавьте GEMINI_API_KEY в настройках проекта.');
                     }
-                    const ai = new GoogleGenAI({ apiKey });
+                     const ai = new GoogleGenAI({ apiKey });
+                     const response = await ai.models.generateContent({
+                       model: "gemini-3-flash-preview",
+                       contents: {
+                         parts: [
+                           {
+                             inlineData: {
+                               data: base64,
+                               mimeType: aiFile.type
+                             }
+                           },
+                           {
+                             text: "Analyze this image/PDF. Extract each product with its price and description. Return ONLY a JSON array of objects. Each object MUST have 'name' (string), 'price' (number), and 'description' (string). Return only pure JSON, no markdown code blocks, no preamble. Example: [{\"name\": \"Product Name\", \"price\": 1000, \"description\": \"Details\"}]"
+                           }
+                         ]
+                       }
+                     });
 
-                    const response = await ai.models.generateContent({
-                      model: "gemini-3-flash-preview",
-                      contents: [
-                        { inlineData: { data: base64, mimeType: aiFile.type } },
-                        { text: "Analyze this image/PDF. Extract each medical drug/product. Return ONLY a JSON array. Each object MUST have 'name' (string), 'price' (number), and 'description' (string). No talk, no markdown. Just the array. Example: [{\"name\": \"Paracetamol\", \"price\": 5000, \"description\": \"For fever\"}]" }
-                      ]
-                    });
-
-                    const text = response.text || "";
-                    // More robust JSON extraction: find the first '[' and last ']'
-                    const firstBracket = text.indexOf('[');
-                    const lastBracket = text.lastIndexOf(']');
+                     const text = response.text || "";
                     
-                    if (firstBracket === -1 || lastBracket === -1) {
+                    // More robust JSON extraction: find the first '[' and last ']'
+                    const firstBracket = text?.indexOf('[');
+                    const lastBracket = text?.lastIndexOf(']');
+                    
+                    if (!text || firstBracket === -1 || lastBracket === -1) {
                       throw new Error('AI не смог распознать список товаров в ответе. Попробуйте другое фото.');
                     }
 
@@ -1459,8 +1492,8 @@ export default function AdminPanel() {
                 disabled={aiIsProcessing || !aiFile}
                 className="w-full py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-widest shadow-lg hover:shadow-2xl transition-all disabled:opacity-50 flex items-center justify-center gap-3"
               >
-                {aiIsProcessing ? <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }} className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full" /> : <FileText className="w-6 h-6" />}
-                {aiIsProcessing ? 'Обработка нейросетью...' : 'Распознать товары'}
+                {aiIsProcessing ? <Loader className="w-6 h-6 animate-spin text-white" /> : <FileText className="w-6 h-6" />}
+                {aiIsProcessing ? 'Обработка...' : 'Распознать товары'}
               </button>
             </div>
 
@@ -1481,11 +1514,36 @@ export default function AdminPanel() {
                                let finalCategoryId = aiCategoryId;
                                
                                if (aiCategoryId === 'auto') {
-                                  const match = categories.find(c => 
-                                     (res.name.toLowerCase().includes((c.name?.ru || '').toLowerCase())) || 
-                                     (res.name.toLowerCase().includes((c.name?.uz || '').toLowerCase()))
-                                  );
-                                  finalCategoryId = match ? match.id : (categories[0]?.id || '');
+                                  const productNameLower = res.name.toLowerCase();
+                                  
+                                  const categoryScores = categories.map(c => {
+                                     const ruName = (c.name?.ru || '').toLowerCase();
+                                     const uzName = (c.name?.uz || '').toLowerCase();
+                                     const getBases = (name: string) => name.split(/\s+/).map(w => w.replace(/[.,!?:;]/g, '').trim()).filter(w => w.length > 2).map(w => w.replace(/(и|ы|ая|ой|ые|ие|а|я|о|е|ar|lar)$/i, ''));
+                                     const ruBases = getBases(ruName);
+                                     const uzBases = getBases(uzName);
+                                     
+                                     let score = 0;
+                                     ruBases.forEach(b => { if (productNameLower.includes(b)) score += 10; });
+                                     uzBases.forEach(b => { if (productNameLower.includes(b)) score += 10; });
+
+                                     const keywords = ['плитка', 'индикатор', 'табличка', 'кнопка', 'пандус', 'подъемник', 'замок', 'держатель'];
+                                     keywords.forEach(word => { if (productNameLower.includes(word) && (ruName.includes(word) || uzName.includes(word))) score += 15; });
+
+                                     return { id: c.id, score };
+                                  });
+
+                                  const bestMatch = categoryScores.filter(s => s.score > 0).sort((a, b) => b.score - a.score)[0];
+                                  
+                                  if (bestMatch && bestMatch.score > 0) {
+                                     finalCategoryId = bestMatch.id;
+                                  } else {
+                                     const otherCategory = categories.find(c => {
+                                        const n = (c.name?.ru || '').toLowerCase();
+                                        return n.includes('прочее') || n.includes('другое') || n.includes('boshqa');
+                                     });
+                                     finalCategoryId = otherCategory ? otherCategory.id : (categories[0]?.id || '');
+                                  }
                                }
 
                                if (!finalCategoryId) continue;
@@ -1551,6 +1609,41 @@ export default function AdminPanel() {
                     className="bg-transparent border-none outline-none text-xs font-black uppercase tracking-widest w-40 placeholder:text-gray-300"
                   />
                </div>
+               <button 
+                 onClick={(e) => {
+                   e.stopPropagation();
+                   showConfirm(
+                    "ОПАСНО: Очистка заказов", 
+                    "Вы действительно хотите УДАЛИТЬ ВСЕ заказы из базы данных? Это действие необратимо!", 
+                    async () => {
+                      showConfirm("ПОСЛЕДНЕЕ ПРЕДУПРЕЖДЕНИЕ", "Заказы будут удалены навсегда. Вы точно уверены?", async () => {
+                        try {
+                          const ordersRef = collection(db, 'orders');
+                          const snap = await getDocs(ordersRef);
+                          
+                          if (snap.empty) {
+                            alert('Заказов не найдено');
+                            return;
+                          }
+
+                          const deletePromises = snap.docs.map(d => deleteDoc(doc(db, 'orders', d.id)));
+                          await Promise.all(deletePromises);
+                          
+                          alert('Все заказы успешно удалены');
+                        } catch (err) {
+                          console.error('Delete all error:', err);
+                          handleFirestoreError(err, OperationType.DELETE, 'orders');
+                          alert('Ошибка при удалении заказов');
+                        }
+                      });
+                    }
+                   )
+                 }}
+                 className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-xl border border-red-100 hover:bg-red-600 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest shrink-0 ml-2"
+               >
+                 <Trash2 className="w-4 h-4" />
+                 Очистить все
+               </button>
             </div>
           </div>
           <div className="space-y-4">
@@ -1662,7 +1755,7 @@ export default function AdminPanel() {
                             
                             <div className="p-4 rounded-xl bg-blue-50/50 border border-blue-100">
                                <h4 className="text-[10px] font-black uppercase tracking-widest text-blue-400 mb-3 flex items-center gap-2">
-                                 <User className="w-3.5 h-3.5" /> Данные клиента
+                                  <User className="w-3.5 h-3.5" /> Данные клиента
                                </h4>
                                <div className="grid grid-cols-2 gap-4">
                                   <div>
@@ -1677,7 +1770,7 @@ export default function AdminPanel() {
                                      <p className="text-[8px] font-black uppercase text-gray-400">Telegram/Insta</p>
                                      <p className="text-sm font-bold text-blue-700">{order.userContact}</p>
                                   </div>
-                                 {order.address && order.deliveryMethod === 'delivery' && (
+                                  {order.address && order.deliveryMethod === 'delivery' && (
                                     <div className="col-span-2 border-t border-blue-100 pt-2 mt-2">
                                        <p className="text-[8px] font-black uppercase text-gray-400">Адрес доставки</p>
                                        <p className="text-sm font-bold text-blue-900 leading-tight">{order.address}</p>
@@ -1696,6 +1789,150 @@ export default function AdminPanel() {
                                     </div>
                                  </a>
                                  <p className="text-[9px] text-gray-400 mt-2 font-bold uppercase tracking-wider text-center">{order.paymentMethod || 'Не указан'}</p>
+                                 {(order.status === 'pending' || order.status === 'need_to_pay') && (!activeOrderAction || activeOrderAction.id !== order.id) ? (
+                                   <div className="mt-4 flex gap-2">
+                                       <button 
+                                         onClick={(e) => { e.stopPropagation(); setActiveOrderAction({ id: order.id, type: 'confirm' }); }}
+                                         className="flex-1 py-3 bg-green-600 text-white rounded-xl font-black uppercase text-xs tracking-widest hover:bg-green-700 transition-all shadow-lg border-b-4 border-green-800 active:border-b-0 active:translate-y-1"
+                                       >
+                                         Подтвердить
+                                       </button>
+                                       <button 
+                                         onClick={(e) => { e.stopPropagation(); setActiveOrderAction({ id: order.id, type: 'reject' }); }}
+                                         className="flex-1 py-3 bg-red-600 text-white rounded-xl font-black uppercase text-xs tracking-widest hover:bg-red-700 transition-all shadow-lg border-b-4 border-red-800 active:border-b-0 active:translate-y-1"
+                                       >
+                                         Отклонить
+                                       </button>
+                                    </div>
+                                 ) : null}
+
+                                 {activeOrderAction?.id === order.id && (
+                                    <motion.div 
+                                      initial={{ opacity: 0, height: 0 }}
+                                      animate={{ opacity: 1, height: 'auto' }}
+                                      className="mt-4 p-3 bg-white border border-gray-100 rounded-xl shadow-inner space-y-3"
+                                      onClick={e => e.stopPropagation()}
+                                    >
+                                       {activeOrderAction.type === 'confirm' ? (
+                                          <>
+                                             <p className="text-[10px] font-black uppercase text-gray-400 text-center">Выберите статус готовности</p>
+                                             <div className="grid grid-cols-1 gap-2">
+                                                <button 
+                                                  onClick={async () => {
+                                                     await updateDoc(doc(db, 'orders', order.id), { 
+                                                       status: 'ready',
+                                                       siteComment: 'Оплата подтверждена. Ваш заказ готов к выдаче!'
+                                                     });
+                                                     setActiveOrderAction(null);
+                                                  }}
+                                                  className="py-2 bg-green-50 text-green-700 rounded-lg border border-green-100 text-[10px] font-black uppercase tracking-widest hover:bg-green-100"
+                                                >
+                                                  Готов к выдаче
+                                                </button>
+                                                <button 
+                                                  onClick={() => {
+                                                     setLocalReadinessValue(order.readinessTime?.toString().split(' ')[0] || '');
+                                                     setActiveOrderAction({ id: order.id, type: 'confirm_time' as any });
+                                                  }}
+                                                  className="py-2 bg-blue-50 text-blue-700 rounded-lg border border-blue-100 text-[10px] font-black uppercase tracking-widest hover:bg-blue-100"
+                                                >
+                                                  Указать время
+                                                </button>
+                                                <button 
+                                                  onClick={() => setActiveOrderAction(null)}
+                                                  className="py-1 text-[8px] font-black uppercase text-gray-400 hover:text-gray-600 text-center"
+                                                >
+                                                  Назад
+                                                </button>
+                                             </div>
+                                          </>
+                                       ) : activeOrderAction.type === 'reject' ? (
+                                          <div className="space-y-2">
+                                             <p className="text-[10px] font-black uppercase text-gray-400">Причина отклонения</p>
+                                             <textarea 
+                                               className="w-full p-2 border border-gray-200 rounded-lg text-xs font-bold"
+                                               placeholder="Например: Неверный чек / Оплата не поступила"
+                                               value={order.siteComment || ''}
+                                               onChange={async (e) => await updateDoc(doc(db, 'orders', order.id), { siteComment: e.target.value })}
+                                             />
+                                             <div className="flex gap-2">
+                                                <button 
+                                                  onClick={async () => {
+                                                     await updateDoc(doc(db, 'orders', order.id), { 
+                                                       status: 'cancelled',
+                                                       siteComment: order.siteComment || 'Заказ отклонен. Пожалуйста, проверьте данные оплаты или свяжитесь с нами.'
+                                                     });
+                                                     setActiveOrderAction(null);
+                                                  }}
+                                                  className="flex-1 py-2 bg-red-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md"
+                                                >
+                                                  Отменить заказ
+                                                </button>
+                                                <button 
+                                                  onClick={() => setActiveOrderAction(null)}
+                                                  className="flex-1 py-2 bg-gray-100 text-gray-600 rounded-lg text-[10px] font-black uppercase tracking-widest"
+                                                >
+                                                  Назад
+                                                </button>
+                                             </div>
+                                          </div>
+                                        ) : activeOrderAction.type === ('confirm_time' as any) ? (
+                                           <div className="space-y-4">
+                                              <div className="grid grid-cols-2 gap-2">
+                                                 <div>
+                                                   <label className="block text-[8px] font-black uppercase text-gray-400 mb-1">Срок</label>
+                                                   <input 
+                                                     type="text"
+                                                     placeholder="Число"
+                                                     className="w-full p-2 border border-gray-200 rounded-lg text-xs font-bold"
+                                                     value={localReadinessValue}
+                                                     onChange={(e) => setLocalReadinessValue(e.target.value)}
+                                                   />
+                                                 </div>
+                                                 <div>
+                                                   <label className="block text-[8px] font-black uppercase text-gray-400 mb-1">Ед. изм.</label>
+                                                   <select 
+                                                     className="w-full p-2 border border-gray-200 rounded-lg text-xs font-bold"
+                                                     onChange={async (e) => {
+                                                        const val = order.readinessTime?.toString().split(' ')[0] || '';
+                                                        const unit = e.target.value;
+                                                        await updateDoc(doc(db, 'orders', order.id), { readinessTime: `${val} ${unit}`.trim() });
+                                                     }}
+                                                   >
+                                                      <option value="час">час</option>
+                                                      <option value="дн">дн</option>
+                                                   </select>
+                                                 </div>
+                                              </div>
+                                              <button 
+                                                onClick={async () => {
+                                                   const unit = order.readinessTime?.toString().split(' ')[1] || 'час';
+                                                   const timeString = `${localReadinessValue} ${unit}`.trim();
+                                                   
+                                                   const timeParts = timeString.split(' ');
+                                                   const val = parseInt(timeParts[0]) || 0;
+                                                   
+                                                   let readyAt = new Date();
+                                                   if (unit === 'час') readyAt.setHours(readyAt.getHours() + val);
+                                                   else if (unit === 'дн') readyAt.setDate(readyAt.getDate() + val);
+                                                   
+                                                   await updateDoc(doc(db, 'orders', order.id), { 
+                                                     status: 'confirmed',
+                                                     readinessTime: timeString,
+                                                     targetReadyAt: readyAt.toISOString(),
+                                                     siteComment: `Заказ подтвержден. Будет готов через ${timeString}`
+                                                   });
+                                                   setActiveOrderAction(null);
+                                                   setLocalReadinessValue('');
+                                                }}
+                                                className="w-full py-2 bg-blue-500 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-md"
+                                              >
+                                                Подтвердить время
+                                              </button>
+                                           </div>
+                                        ) : null}
+                                     </motion.div>
+                                  )}
                               </div>
                             )}
                          </div>
@@ -1711,6 +1948,7 @@ export default function AdminPanel() {
                                   <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 ml-1">Статус заказа</label>
                                   <select 
                                     value={order.status}
+                                    onClick={e => e.stopPropagation()}
                                     onChange={async (e) => await updateDoc(doc(db, 'orders', order.id), { status: e.target.value })}
                                     className="w-full p-2.5 rounded-lg border border-gray-200 font-bold bg-gray-50 focus:bg-white text-sm"
                                   >
@@ -1728,13 +1966,14 @@ export default function AdminPanel() {
                                      <div>
                                        <label className="block text-[8px] font-black uppercase tracking-widest text-gray-400 mb-1 ml-1">Время</label>
                                        <input 
-                                         type="text"
+                                         type="text" 
                                          placeholder="6"
+                                         onClick={e => e.stopPropagation()}
                                          value={order.readinessTime?.toString().split(' ')[0] || ''}
                                          className="w-full p-2 rounded-lg border border-gray-200 font-bold bg-white text-sm"
                                          onChange={async (e) => {
                                             const val = e.target.value;
-                                            const unit = order.readinessTime?.toString().split(' ')[1] || 'мин';
+                                            const unit = order.readinessTime?.toString().split(' ')[1] || 'час';
                                             await updateDoc(doc(db, 'orders', order.id), { readinessTime: `${val} ${unit}`.trim() });
                                          }}
                                        />
@@ -1742,7 +1981,8 @@ export default function AdminPanel() {
                                      <div>
                                        <label className="block text-[8px] font-black uppercase tracking-widest text-gray-400 mb-1 ml-1">Ед. изм.</label>
                                        <select 
-                                         value={order.readinessTime?.toString().split(' ')[1] || 'мин'}
+                                         value={order.readinessTime?.toString().split(' ')[1] || 'час'}
+                                         onClick={e => e.stopPropagation()}
                                          onChange={async (e) => {
                                             const val = order.readinessTime?.toString().split(' ')[0] || '';
                                             const unit = e.target.value;
@@ -1750,7 +1990,6 @@ export default function AdminPanel() {
                                          }}
                                          className="w-full p-2.5 rounded-lg border border-gray-200 font-bold bg-gray-50 focus:bg-white text-sm"
                                        >
-                                         <option value="мин">мин</option>
                                          <option value="час">час</option>
                                          <option value="дн">дн</option>
                                        </select>
@@ -1762,6 +2001,7 @@ export default function AdminPanel() {
                                    <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 ml-1">Адрес доставки</label>
                                    <textarea 
                                      value={order.address || ''}
+                                     onClick={e => e.stopPropagation()}
                                      onChange={async (e) => await updateDoc(doc(db, 'orders', order.id), { address: e.target.value })}
                                      className="w-full p-3 rounded-lg border border-gray-200 font-bold bg-gray-50 focus:bg-white text-xs h-16"
                                      placeholder="Укажите адрес доставки..."
@@ -1772,6 +2012,7 @@ export default function AdminPanel() {
                                    <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 ml-1">Комментарий админа</label>
                                    <textarea 
                                      value={order.siteComment || ''}
+                                     onClick={e => e.stopPropagation()}
                                      onChange={async (e) => await updateDoc(doc(db, 'orders', order.id), { siteComment: e.target.value })}
                                      className="w-full p-3 rounded-lg border border-gray-200 font-bold bg-gray-50 focus:bg-white text-xs h-20"
                                      placeholder="Виден клиенту..."
@@ -1824,8 +2065,9 @@ export default function AdminPanel() {
                     </button>
                     <button 
                       onClick={() => {
-                        confirmData.onConfirm();
+                        const callback = confirmData.onConfirm;
                         setIsConfirmOpen(false);
+                        setTimeout(callback, 0);
                       }}
                       className={`py-4 ${confirmData.title.toUpperCase().includes('ИМПОРТ') || confirmData.title.toUpperCase().includes('ДОБАВЛЕНИЕ') ? 'bg-green-600 shadow-green-200 hover:bg-green-700' : 'bg-red-600 shadow-red-200 hover:bg-red-700'} text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg transition-all hover:-translate-y-0.5 active:translate-y-0`}
                     >
