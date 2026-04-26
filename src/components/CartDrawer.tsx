@@ -25,6 +25,8 @@ export default function CartDrawer() {
   
   const [phone, setPhone] = useState(storedContactInfo.phone || '+998');
   const [contactInfo, setContactInfo] = useState(storedContactInfo.contact || '');
+  const [address, setAddress] = useState('');
+  const [deliveryMethod, setDeliveryMethod] = useState<'pickup' | 'delivery'>('pickup');
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   
@@ -150,6 +152,8 @@ export default function CartDrawer() {
         userName: user!.displayName || 'Unknown',
         userPhone: phone || '',
         userContact: contactInfo || '',
+        address: deliveryMethod === 'delivery' ? (address || '') : 'Самовывоз',
+        deliveryMethod,
         code: generatedCode,
         items: cartItems.map(i => ({ 
           id: i.id || '', 
@@ -194,6 +198,7 @@ export default function CartDrawer() {
       setPromoMessage('');
       setPhone('');
       setContactInfo('');
+      setAddress('');
       
       // Redirect to cabinet to see the order
       window.location.hash = 'cabinet';
@@ -255,7 +260,7 @@ export default function CartDrawer() {
                       className="flex gap-4 p-4 bg-white rounded-2xl shadow-sm border border-gray-100 group hover:shadow-md transition-shadow"
                     >
                       <img 
-                        src={product?.image} 
+                        src={product?.image || undefined} 
                         alt={product?.name?.[language]} 
                         className="w-20 h-20 object-cover rounded-xl shadow-sm"
                       />
@@ -389,7 +394,7 @@ export default function CartDrawer() {
                       {/* Left Side: Information */}
                       <div className="flex-1 flex flex-col overflow-hidden border-b md:border-b-0 md:border-r border-gray-100">
                         <div className="relative h-32 md:h-40 w-full shrink-0">
-                          <img src={selectedPaymentMethod.image} alt="Payment" className="w-full h-full object-cover" />
+                          <img src={selectedPaymentMethod.image || undefined} alt="Payment" className="w-full h-full object-cover" />
                           <button onClick={() => setSelectedPaymentMethod(null)} className="absolute left-4 top-4 p-2 bg-white/90 rounded-full text-gray-900 shadow hover:bg-white text-sm font-bold z-10">
                             {language === 'ru' ? '← Назад' : '← Orqaga'}
                           </button>
@@ -424,6 +429,44 @@ export default function CartDrawer() {
                                   className={`w-full px-5 py-4 rounded-xl border transition-all outline-none font-bold text-sm shadow-sm ${!contactInfo.trim() ? 'border-red-500 bg-red-50 focus:ring-red-200' : 'border-gray-200 bg-gray-50 focus:ring-primary focus:bg-white'}`}
                                 />
                                 {!contactInfo.trim() && <span className="absolute right-4 top-1/2 -translate-y-1/2 text-red-500 font-bold">*</span>}
+                              </div>
+
+                              <div className="space-y-4 pt-4 border-t border-gray-100">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-2">{language === 'ru' ? 'Способ получения' : 'Qabul qilish usuli'}</p>
+                                <div className="grid grid-cols-2 gap-3">
+                                  <button 
+                                    onClick={() => setDeliveryMethod('pickup')}
+                                    className={`py-3 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all border-2 ${deliveryMethod === 'pickup' ? 'bg-primary text-white border-primary shadow-lg scale-105' : 'bg-white text-gray-400 border-gray-100 hover:border-gray-200'}`}
+                                  >
+                                    {language === 'ru' ? 'Самовывоз' : 'Olib ketish'}
+                                  </button>
+                                  <button 
+                                    onClick={() => setDeliveryMethod('delivery')}
+                                    className={`py-3 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all border-2 ${deliveryMethod === 'delivery' ? 'bg-primary text-white border-primary shadow-lg scale-105' : 'bg-white text-gray-400 border-gray-100 hover:border-gray-200'}`}
+                                  >
+                                    {language === 'ru' ? 'Доставка' : 'Yetkazib berish'}
+                                  </button>
+                                </div>
+                                
+                                <AnimatePresence>
+                                  {deliveryMethod === 'delivery' && (
+                                    <motion.div 
+                                      initial={{ opacity: 0, height: 0 }}
+                                      animate={{ opacity: 1, height: 'auto' }}
+                                      exit={{ opacity: 0, height: 0 }}
+                                      className="relative overflow-hidden"
+                                    >
+                                      <input 
+                                        type="text" 
+                                        placeholder={language === 'ru' ? 'Адрес доставки (Город, улица, дом...)' : 'Yetkazib berish manzili (Shahar, ko\'cha, uy...)'}
+                                        value={address}
+                                        onChange={(e) => setAddress(e.target.value)}
+                                        className={`w-full px-5 py-4 rounded-xl border transition-all outline-none font-bold text-sm shadow-sm ${!address.trim() ? 'border-red-500 bg-red-50 focus:ring-red-200' : 'border-gray-200 bg-gray-50 focus:ring-primary focus:bg-white'}`}
+                                      />
+                                      {!address.trim() && <span className="absolute right-4 top-1/2 -translate-y-1/2 text-red-500 font-bold">*</span>}
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
                               </div>
 
                               <div className="bg-gray-50 border border-gray-100 p-6 rounded-3xl mt-4">
@@ -502,8 +545,8 @@ export default function CartDrawer() {
                             <>
                               <button 
                                 onClick={() => {
-                                   if (!phone.trim() || !contactInfo.trim()) {
-                                      alert(language === 'ru' ? 'Пожалуйста, заполните контактные данные!' : 'Iltimos, aloqa ma\'lumotlarini to\'ldiring!');
+                                   if (!phone.trim() || !contactInfo.trim() || (deliveryMethod === 'delivery' && !address.trim())) {
+                                      alert(language === 'ru' ? 'Пожалуйста, заполните контактные данные и адрес доставки!' : 'Iltimos, aloqa ma\'lumotlarini va yetkazib berish manzilini to\'ldiring!');
                                       return;
                                    }
                                    if (selectedPaymentMethod.screenshotRequired) {
@@ -512,7 +555,7 @@ export default function CartDrawer() {
                                       finishCheckout(false);
                                    }
                                 }}
-                                disabled={isSubmitting}
+                                disabled={isSubmitting || !phone.trim() || !contactInfo.trim() || (deliveryMethod === 'delivery' && !address.trim())}
                                 className="w-full py-5 text-white rounded-2xl font-black text-base md:text-lg uppercase tracking-widest transition shadow-xl hover:shadow-2xl active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-50"
                                 style={{ backgroundColor: selectedPaymentMethod.btnColor || '#2563eb' }}
                               >

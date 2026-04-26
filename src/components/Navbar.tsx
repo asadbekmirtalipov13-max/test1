@@ -193,6 +193,16 @@ export default function Navbar() {
                 </span>
               )}
             </button>
+            
+            {/* Special Version Button on Mobile - Positioned before Menu */}
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={toggleLargeText}
+              className={`p-2 rounded-xl transition-all ${isLargeText ? 'bg-yellow-400 text-yellow-900 shadow-sm' : 'text-gray-400 hover:text-gray-900'}`}
+            >
+              <Eye className="w-6 h-6" style={{ strokeWidth: 2.5 }} />
+            </motion.button>
+
             <button
               onClick={() => setIsOpen(!isOpen)}
               className="p-2 rounded-md text-gray-700 hover:bg-gray-100 focus:outline-none"
@@ -210,27 +220,27 @@ export default function Navbar() {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            className="lg:shadow-2xl bg-white border-t border-gray-100 overflow-hidden"
+            className="lg:shadow-2xl bg-gray-50 border-t border-gray-100 overflow-hidden"
           >
-            <div className="max-w-7xl mx-auto px-4 py-4 space-y-1">
+            <div className="max-w-7xl mx-auto px-4 py-6 space-y-2">
               {/* Only show these on mobile (<lg) since they are in the navbar on desktop */}
-              <div className="lg:hidden space-y-1 border-b border-gray-100 pb-3 mb-3">
-                <a href="#products" onClick={() => setIsOpen(false)} className="flex items-center gap-3 w-full px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest text-gray-700 hover:bg-blue-50 transition-all">
-                  <Package className="w-4 h-4 text-gray-400" /> {t('nav.products')}
+              <div className="lg:hidden space-y-2 border-b border-gray-200 pb-4 mb-4">
+                <a href="#products" onClick={() => setIsOpen(false)} className="flex items-center gap-4 w-full px-5 py-3 rounded-xl text-sm font-black uppercase tracking-widest text-gray-800 hover:bg-white hover:shadow-sm transition-all">
+                  <Package className="w-5 h-5 text-gray-400" /> {t('nav.products')}
                 </a>
-                <a href="#about" onClick={() => setIsOpen(false)} className="flex items-center gap-3 w-full px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest text-gray-700 hover:bg-blue-50 transition-all">
-                  <Info className="w-4 h-4 text-gray-400" /> {t('nav.about')}
+                <a href="#about" onClick={() => setIsOpen(false)} className="flex items-center gap-4 w-full px-5 py-3 rounded-xl text-sm font-black uppercase tracking-widest text-gray-800 hover:bg-white hover:shadow-sm transition-all">
+                  <Info className="w-5 h-5 text-gray-400" /> {t('nav.about')}
                 </a>
-                <a href="#contact" onClick={() => setIsOpen(false)} className="flex items-center gap-3 w-full px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest text-gray-700 hover:bg-blue-50 transition-all">
-                  <Phone className="w-4 h-4 text-gray-400" /> {t('nav.contacts')}
+                <a href="#contact" onClick={() => setIsOpen(false)} className="flex items-center gap-4 w-full px-5 py-3 rounded-xl text-sm font-black uppercase tracking-widest text-gray-800 hover:bg-white hover:shadow-sm transition-all">
+                  <Phone className="w-5 h-5 text-gray-400" /> {t('nav.contacts')}
                 </a>
                 {user ? (
-                  <button onClick={() => { setIsOpen(false); window.location.hash = 'cabinet'; }} className="flex items-center gap-3 w-full px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest text-gray-700 hover:bg-blue-50 transition-all">
-                    <User className="w-4 h-4 text-gray-400" /> {t('nav.profile')}
+                  <button onClick={() => { setIsOpen(false); window.location.hash = 'cabinet'; }} className="flex items-center gap-4 w-full px-5 py-3 rounded-xl text-sm font-black uppercase tracking-widest text-gray-800 hover:bg-white hover:shadow-sm transition-all">
+                    <User className="w-5 h-5 text-gray-400" /> {t('nav.profile')}
                   </button>
                 ) : (
-                  <button onClick={() => { setIsOpen(false); loginWithGoogle(); }} className="flex items-center gap-3 w-full px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest text-gray-700 hover:bg-blue-50 transition-all">
-                    <User className="w-4 h-4 text-gray-400" /> {language === 'ru' ? 'Вход' : 'Kirish'}
+                  <button onClick={() => { setIsOpen(false); loginWithGoogle(); }} className="flex items-center gap-4 w-full px-5 py-3 rounded-xl text-sm font-black uppercase tracking-widest text-gray-800 hover:bg-white hover:shadow-sm transition-all">
+                    <User className="w-5 h-5 text-gray-400" /> {language === 'ru' ? 'Вход' : 'Kirish'}
                   </button>
                 )}
               </div>
@@ -238,40 +248,36 @@ export default function Navbar() {
               {/* Items always in the menu ("three dots" logic) */}
               <div className="space-y-4">
                 {isAdmin && (
-                  <button onClick={() => { setIsOpen(false); window.location.hash = 'admin'; }} className="flex items-center gap-3 w-full px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest text-red-600 hover:bg-red-50 transition-colors">
-                    <ShieldCheck className="w-4 h-4" /> {language === 'ru' ? 'Админ-панель' : 'Admin paneli'}
+                  <button onClick={() => { setIsOpen(false); window.location.hash = 'admin'; }} className="flex items-center gap-4 w-full px-5 py-3 rounded-xl text-sm font-black uppercase tracking-widest text-red-600 hover:bg-red-50 transition-colors">
+                    <ShieldCheck className="w-5 h-5" /> {language === 'ru' ? 'Админ-панель' : 'Admin paneli'}
                   </button>
                 )}
 
-                <div className="flex gap-2 px-4">
-                  <button 
-                    onClick={toggleLargeText}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${isLargeText ? 'bg-yellow-400 text-yellow-900 shadow-md border-2 border-yellow-500' : 'bg-gray-100 text-gray-400 hover:bg-gray-200 border-2 border-transparent'}`}
-                  >
-                    <Eye className="w-4 h-4" />
-                    {language === 'ru' ? 'Спец.версия' : 'Maxsus rejim'}
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 px-4">
-                  <button 
-                    onClick={() => setLanguage('ru')}
-                    className={`py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors ${language === 'ru' ? 'bg-primary text-white shadow-md' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
-                  >
-                    Русский
-                  </button>
-                  <button 
-                    onClick={() => setLanguage('uz')}
-                    className={`py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors ${language === 'uz' ? 'bg-primary text-white shadow-md' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
-                  >
-                    O'zbek
-                  </button>
+                {/* Updated Language Selector */}
+                <div className="px-5 space-y-3">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-2">
+                    {language === 'ru' ? 'Выберите язык' : 'Tilni tanlang'}
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button 
+                      onClick={() => handleLangSelect('ru')}
+                      className={`flex items-center justify-center gap-2 py-4 px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${language === 'ru' ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-105' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'}`}
+                    >
+                      <Globe className="w-4 h-4" /> Русский
+                    </button>
+                    <button 
+                      onClick={() => handleLangSelect('uz')}
+                      className={`flex items-center justify-center gap-2 py-4 px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${language === 'uz' ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-105' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'}`}
+                    >
+                      <Globe className="w-4 h-4" /> O'zbek
+                    </button>
+                  </div>
                 </div>
 
                 {user && (
-                   <div className="px-4 border-t border-gray-100 pt-3">
-                     <button onClick={() => { setIsOpen(false); logout(); }} className="flex items-center gap-2 w-full px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors">
-                       <LogOut className="w-3 h-3" /> {language === 'ru' ? 'Выйти' : 'Chiqish'}
+                   <div className="px-5 pt-4 border-t border-gray-200">
+                     <button onClick={() => { setIsOpen(false); logout(); }} className="flex items-center gap-3 w-full px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest text-gray-500 hover:bg-red-50 hover:text-red-600 transition-all">
+                       <LogOut className="w-4 h-4" /> {language === 'ru' ? 'Выйти из аккаунта' : 'Akkauntdan chiqish'}
                      </button>
                    </div>
                 )}

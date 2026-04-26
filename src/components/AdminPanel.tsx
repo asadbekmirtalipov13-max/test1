@@ -547,7 +547,7 @@ export default function AdminPanel() {
         
         <div className="flex items-center gap-4 bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
           {user.photoURL && user.photoURL !== "" ? (
-            <img src={user.photoURL} alt="" className="w-10 h-10 rounded-xl" />
+            <img src={user.photoURL || undefined} alt="" className="w-10 h-10 rounded-xl" />
           ) : (
             <div className="w-10 h-10 bg-blue-100 text-primary rounded-xl flex items-center justify-center font-bold">
               {user.email?.[0].toUpperCase()}
@@ -683,68 +683,68 @@ export default function AdminPanel() {
                  </div>
               </section>
 
-              <section className="bg-gray-50/50 p-6 rounded-3xl border border-gray-100">
+               <section className="bg-gray-50/50 p-6 rounded-3xl border border-gray-100">
                   <div className="flex items-center gap-3 mb-8">
-                    <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center">
-                      <ShieldCheck className="w-6 h-6 text-slate-600" />
-                    </div>
-                    <h3 className="text-xl font-black text-gray-900 uppercase">Пароли & Пользователи</h3>
+                     <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
+                        <MapPin className="w-6 h-6 text-emerald-600" />
+                     </div>
+                     <h3 className="text-xl font-black text-gray-900 uppercase">Настройки самовывоза</h3>
                   </div>
-                  
-                  {!showPasswordsSection ? (
-                    <div className="space-y-4">
-                       <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Для доступа к этому разделу введите мастер-пароль</p>
-                       <div className="flex gap-2">
-                          <input 
-                            type="password" 
-                            value={passwordInput}
-                            onChange={e => setPasswordInput(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && passwordInput === '1267144' && setShowPasswordsSection(true)}
-                            className="flex-1 px-4 py-3 bg-white rounded-xl border border-gray-100 font-bold"
-                            placeholder="Пароль..."
-                          />
-                          <button 
-                            onClick={() => {
-                              if (passwordInput === '1267144') setShowPasswordsSection(true);
-                              else alert('Неверный пароль');
-                            }}
-                            className="px-6 py-3 bg-primary text-white rounded-xl font-black uppercase text-[10px] tracking-widest"
-                          >
-                            Войти
-                          </button>
-                       </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                       <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl mb-4">
-                          <p className="text-[10px] font-black uppercase text-blue-600 mb-2">Все зарегистрированные пользователи ({allUsers.length})</p>
-                          <div className="divide-y divide-blue-100 max-h-96 overflow-y-auto">
-                             {allUsers.map(u => (
-                                <div key={u.id} className="py-3 flex justify-between items-center text-xs">
-                                   <div>
-                                      <p className="font-bold text-blue-900">{u.displayName || 'Без имени'}</p>
-                                      <p className="text-[10px] text-blue-500">{u.email}</p>
-                                   </div>
-                                   <div className="text-right">
-                                      <p className="font-mono text-blue-800 bg-blue-100/50 px-2 py-1 rounded text-[10px]">UID: {u.uid?.substring(0, 8)}...</p>
-                                      <p className="text-[9px] text-gray-400 mt-1">{u.role}</p>
-                                   </div>
-                                </div>
-                             ))}
-                          </div>
-                       </div>
-                       <button onClick={() => setShowPasswordsSection(false)} className="w-full py-2 text-[10px] font-black text-gray-400 hover:text-primary transition-colors">Скрыть раздел</button>
-                    </div>
-                  )}
-              </section>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                     <div className="space-y-4">
+                        <div>
+                           <label className="block text-[10px] font-black uppercase text-gray-400 mb-2 ml-2">Адрес самовывоза (RU)</label>
+                           <input 
+                              type="text" 
+                              value={pickupSettings.address.ru} 
+                              onChange={e => setPickupSettings({...pickupSettings, address: {...pickupSettings.address, ru: e.target.value}})}
+                              className="w-full px-4 py-3 bg-white rounded-xl border border-gray-100 font-bold text-xs"
+                              placeholder="г. Ташкент, ул. ..."
+                           />
+                        </div>
+                        <div>
+                           <label className="block text-[10px] font-black uppercase text-gray-400 mb-2 ml-2">Адрес самовывоза (UZ)</label>
+                           <input 
+                              type="text" 
+                              value={pickupSettings.address.uz} 
+                              onChange={e => setPickupSettings({...pickupSettings, address: {...pickupSettings.address, uz: e.target.value}})}
+                              className="w-full px-4 py-3 bg-white rounded-xl border border-gray-100 font-bold text-xs"
+                              placeholder="Toshkent sh., ..."
+                           />
+                        </div>
+                     </div>
+                     <div className="space-y-4">
+                        <div>
+                           <label className="block text-[10px] font-black uppercase text-gray-400 mb-2 ml-2">Ссылка на карту (Google/Yandex)</label>
+                           <input 
+                              type="text" 
+                              value={pickupSettings.mapUrl} 
+                              onChange={e => setPickupSettings({...pickupSettings, mapUrl: e.target.value})}
+                              className="w-full px-4 py-3 bg-white rounded-xl border border-gray-100 font-bold text-xs"
+                              placeholder="https://maps.google.com/..."
+                           />
+                        </div>
+                        <div>
+                           <label className="block text-[10px] font-black uppercase text-gray-400 mb-2 ml-2">Телефон менеджера</label>
+                           <input 
+                              type="text" 
+                              value={pickupSettings.callCenter} 
+                              onChange={e => setPickupSettings({...pickupSettings, callCenter: e.target.value})}
+                              className="w-full px-4 py-3 bg-white rounded-xl border border-gray-100 font-bold text-xs"
+                              placeholder="+998 ..."
+                           />
+                        </div>
+                     </div>
+                  </div>
+               </section>
 
-              <section className="bg-gray-50/50 p-6 rounded-3xl border border-gray-100">
-                 <div className="flex items-center gap-3 mb-8">
-                    <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
-                      <Share2 className="w-6 h-6 text-emerald-600" />
-                    </div>
-                    <h3 className="text-xl font-black text-gray-900 uppercase">Контакты и Режим работы</h3>
-                 </div>
+               <section className="bg-gray-50/50 p-6 rounded-3xl border border-gray-100">
+                  <div className="flex items-center gap-3 mb-8">
+                     <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
+                       <Share2 className="w-6 h-6 text-emerald-600" />
+                     </div>
+                     <h3 className="text-xl font-black text-gray-900 uppercase">Контакты и Режим работы</h3>
+                  </div>
                  
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-6">
@@ -839,7 +839,7 @@ export default function AdminPanel() {
                                          <span className="text-[10px] font-black uppercase text-gray-400">Цвет кнопки</span>
                                       </div>
                                       <label className="flex items-center gap-2 cursor-pointer group">
-                                         <input type="checkbox" checked={pm.requireScreenshot} onChange={e => setPaymentMethodsList(paymentMethodsList.map((p, i) => i === idx ? { ...p, requireScreenshot: e.target.checked } : p))} className="w-4 h-4 rounded text-primary focus:ring-primary" />
+                                         <input type="checkbox" checked={pm.screenshotRequired} onChange={e => setPaymentMethodsList(paymentMethodsList.map((p, i) => i === idx ? { ...p, screenshotRequired: e.target.checked } : p))} className="w-4 h-4 rounded text-primary focus:ring-primary" />
                                          <span className="text-[10px] font-black uppercase text-gray-400 group-hover:text-gray-600 transition-colors">Нужен скриншот?</span>
                                       </label>
                                    </div>
@@ -960,7 +960,7 @@ export default function AdminPanel() {
                             onChange={e => setPasswordInput(e.target.value)}
                             onKeyDown={e => e.key === 'Enter' && passwordInput === '1267144' && setShowPasswordsSection(true)}
                             className="flex-1 px-4 py-3 bg-white rounded-xl border border-gray-100 font-bold"
-                            placeholder="Код (1267144)..."
+                            placeholder="Код доступа..."
                           />
                           <button 
                             onClick={() => {
@@ -1252,7 +1252,7 @@ export default function AdminPanel() {
                     className="p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors"
                   >
                     <div className="flex items-center gap-4">
-                      <img src={cat.image} className="w-10 h-10 rounded-lg object-cover" />
+                      <img src={cat.image || undefined} className="w-10 h-10 rounded-lg object-cover" />
                       <h4 className="font-black text-gray-900 uppercase tracking-tight">{cat.name?.ru || cat.name?.uz}</h4>
                       <span className="bg-gray-100 px-2 py-0.5 rounded-full text-[10px] font-black text-gray-400">{catProducts.length}</span>
                     </div>
@@ -1296,7 +1296,7 @@ export default function AdminPanel() {
                                 </td>
                                 <td className="p-2">
                                   <div className="flex items-center gap-3">
-                                    <img src={prod.image} className="w-8 h-8 rounded object-cover" />
+                                    <img src={prod.image || undefined} className="w-8 h-8 rounded object-cover" />
                                     <div>
                                       <p className="text-xs font-black text-gray-900 line-clamp-1">{prod.name?.ru || prod.name?.uz}</p>
                                       <p className="text-[9px] text-gray-400 uppercase tracking-widest">{prod.name?.uz}</p>
@@ -1625,6 +1625,12 @@ export default function AdminPanel() {
                                      <p className="text-[8px] font-black uppercase text-gray-400">Telegram/Insta</p>
                                      <p className="text-sm font-bold text-blue-700">{order.userContact}</p>
                                   </div>
+                                  {order.address && (
+                                    <div className="col-span-2 border-t border-blue-100 pt-2 mt-2">
+                                       <p className="text-[8px] font-black uppercase text-gray-400">Адрес доставки</p>
+                                       <p className="text-sm font-bold text-blue-900 leading-tight">{order.address}</p>
+                                    </div>
+                                  )}
                                </div>
                             </div>
 
@@ -1699,6 +1705,16 @@ export default function AdminPanel() {
                                      </div>
                                    </div>
                                  )}
+                                 
+                                 <div className="pt-2">
+                                   <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 ml-1">Адрес доставки</label>
+                                   <textarea 
+                                     value={order.address || ''}
+                                     onChange={async (e) => await updateDoc(doc(db, 'orders', order.id), { address: e.target.value })}
+                                     className="w-full p-3 rounded-lg border border-gray-200 font-bold bg-gray-50 focus:bg-white text-xs h-16"
+                                     placeholder="Укажите адрес доставки..."
+                                   />
+                                 </div>
                                  
                                  <div className="pt-2">
                                    <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 ml-1">Комментарий админа</label>
@@ -1778,7 +1794,7 @@ export default function AdminPanel() {
             
             <div className="space-y-4">
               <div className="flex gap-4 items-center">
-                <img src={editingCategory.image} className="w-16 h-16 rounded-lg object-cover" alt="" />
+                <img src={editingCategory.image || undefined} className="w-16 h-16 rounded-lg object-cover" alt="" />
                 <label className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded cursor-pointer text-sm font-bold">
                   Загрузить иконку
                   <input type="file" className="hidden" accept="image/*" onChange={(e)=>{
@@ -1822,7 +1838,7 @@ export default function AdminPanel() {
             
             <div className="space-y-4">
               <div className="flex gap-4 items-center">
-                <img src={editingProduct.image} className="w-16 h-16 rounded-lg object-cover" alt="" />
+                <img src={editingProduct.image || undefined} className="w-16 h-16 rounded-lg object-cover" alt="" />
                 <label className="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded cursor-pointer text-sm font-bold">
                   Загрузить фото
                   <input type="file" className="hidden" accept="image/*" onChange={(e)=>{

@@ -190,10 +190,10 @@ export default function UserCabinet() {
 
       <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100 mb-8 mt-4">
         <div className="bg-gradient-to-r from-primary to-blue-700 p-8 pt-12 text-white relative">
-          <div className="flex flex-col md:flex-row items-center gap-8 relative z-10">
+            <div className="flex flex-col md:flex-row items-center gap-8 relative z-10">
             <div className="relative group">
               <div className="w-24 h-24 rounded-3xl overflow-hidden bg-white shadow-xl border-4 border-white/20">
-                <img src={isEditingProfile ? (editingAvatar || null) : (user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName}&background=random`)} alt={user.displayName || ''} className="w-full h-full object-cover" />
+                <img src={isEditingProfile ? (editingAvatar || undefined) : (user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName}&background=random`)} alt={user.displayName || ''} className="w-full h-full object-cover" />
               </div>
               {isEditingProfile && (
                 <label className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity rounded-3xl text-center p-2 backdrop-blur-[2px]">
@@ -205,6 +205,18 @@ export default function UserCabinet() {
                 </label>
               )}
             </div>
+            {isEditingProfile && (
+              <div className="flex flex-col gap-2">
+                <button 
+                  onClick={() => document.getElementById('avatar-upload-cabinet')?.click()}
+                  className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-[10px] font-black uppercase tracking-widest text-white flex items-center gap-2 transition-all"
+                >
+                  <Camera className="w-4 h-4" />
+                  {language === 'ru' ? 'Загрузить фото' : 'Rasm yuklash'}
+                </button>
+                <input id="avatar-upload-cabinet" type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
+              </div>
+            )}
             <div className="text-center md:text-left flex-1 min-w-0">
               {isEditingProfile ? (
                  <input 
@@ -654,6 +666,12 @@ export default function UserCabinet() {
                   
                   <div className="text-sm text-gray-600 mb-4">
                     {language === 'ru' ? 'Товаров в заказе:' : 'Buyurtmadagi tovarlar:'} <span className="font-bold text-gray-900">{order.items.length}</span>
+                    {order.address && (
+                      <div className="mt-3 flex gap-2 items-start text-xs font-bold text-gray-700 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                        <Truck className="w-4 h-4 text-primary shrink-0" />
+                        <span>{language === 'ru' ? 'Адрес доставки:' : 'Yetkazib berish manzili:'} {order.address}</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Order Items List */}
