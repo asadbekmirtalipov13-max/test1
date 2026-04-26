@@ -1006,42 +1006,56 @@ export default function AdminPanel() {
 
               <section className="bg-gray-50/50 p-6 rounded-3xl border border-gray-100">
                   <div className="flex items-center gap-3 mb-8">
-                     <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600">
+                     <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600">
                         <FileText className="w-6 h-6" />
                      </div>
-                     <h3 className="text-xl font-black text-gray-900 uppercase">Описание в футере</h3>
+                     <div>
+                        <h3 className="text-xl font-black text-gray-900 uppercase">Описание в футере</h3>
+                        <p className="text-[10px] font-black uppercase text-gray-400">Текст о производстве (пандусы, металлоконструкции и др.)</p>
+                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
-                     <div>
-                        <label className="block text-[10px] font-black uppercase text-gray-400 mb-2 ml-2">Текст (RU)</label>
+                     <div className="space-y-2">
+                        <label className="block text-[10px] font-black uppercase text-gray-500 mb-1 ml-2">Текст в футере (RU)</label>
                         <textarea 
-                           className="w-full px-4 py-3 bg-white rounded-xl border border-gray-100 font-bold text-xs h-24"
+                           className="w-full px-5 py-4 bg-white rounded-2xl border border-gray-200 font-bold text-xs h-32 focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none"
                            value={siteDescription.ru}
                            onChange={e => setSiteDescription({...siteDescription, ru: e.target.value})}
-                           placeholder="Например: Производство пандусов..."
+                           placeholder="Например: Производство пандусов и металлоконструкций по всему Узбекистану..."
                         />
                      </div>
-                     <div>
-                        <label className="block text-[10px] font-black uppercase text-gray-400 mb-2 ml-2">Текст (UZ)</label>
+                     <div className="space-y-2">
+                        <label className="block text-[10px] font-black uppercase text-gray-500 mb-1 ml-2">Текст в футере (UZ)</label>
                         <textarea 
-                           className="w-full px-4 py-3 bg-white rounded-xl border border-gray-100 font-bold text-xs h-24"
+                           className="w-full px-5 py-4 bg-white rounded-2xl border border-gray-200 font-bold text-xs h-32 focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none"
                            value={siteDescription.uz}
                            onChange={e => setSiteDescription({...siteDescription, uz: e.target.value})}
-                           placeholder="Masalan: Panduslar ishlab chiqarish..."
+                           placeholder="Masalan: O'zbekiston bo'ylab panduslar va metall konstruksiyalar ishlab chiqarish..."
                         />
                      </div>
                   </div>
               </section>
 
-              <div className="pt-8 border-t border-gray-100 flex justify-end">
-                <button 
-                  onClick={handleSaveCustomization}
-                  disabled={customizationSaving}
-                  className="px-12 py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-widest shadow-xl hover:shadow-2xl transition-all disabled:opacity-50 flex items-center gap-3"
-                >
-                  {customizationSaving ? <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }} className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full" /> : <Save className="w-5 h-5" />}
-                  {customizationSaving ? 'Сохранение...' : 'Сохранить все настройки'}
-                </button>
+              {/* Sticky Save Button Container */}
+              <div className="sticky bottom-4 left-0 right-0 z-30 pt-4">
+                <div className="max-w-4xl mx-auto">
+                  <motion.button 
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleSaveCustomization}
+                    disabled={customizationSaving}
+                    className="w-full py-5 bg-primary text-white rounded-2xl font-black uppercase tracking-[0.2em] shadow-2xl hover:shadow-primary/40 transition-all disabled:opacity-50 flex items-center justify-center gap-4 border-4 border-white"
+                  >
+                    {customizationSaving ? (
+                      <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }} className="w-6 h-6 border-4 border-white/20 border-t-white rounded-full" />
+                    ) : (
+                      <Save className="w-6 h-6" />
+                    )}
+                    <span className="text-sm">
+                      {customizationSaving ? 'Сохранение настроек...' : 'Сохранить все изменения сайта'}
+                    </span>
+                  </motion.button>
+                </div>
               </div>
         </div>
       )}
@@ -1625,7 +1639,7 @@ export default function AdminPanel() {
                                      <p className="text-[8px] font-black uppercase text-gray-400">Telegram/Insta</p>
                                      <p className="text-sm font-bold text-blue-700">{order.userContact}</p>
                                   </div>
-                                  {order.address && (
+                                 {order.address && order.deliveryMethod === 'delivery' && (
                                     <div className="col-span-2 border-t border-blue-100 pt-2 mt-2">
                                        <p className="text-[8px] font-black uppercase text-gray-400">Адрес доставки</p>
                                        <p className="text-sm font-bold text-blue-900 leading-tight">{order.address}</p>
@@ -1757,8 +1771,8 @@ export default function AdminPanel() {
               className="relative bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden border border-gray-100"
             >
               <div className="p-8">
-                 <div className="w-16 h-16 bg-red-100 rounded-2xl flex items-center justify-center mb-6 mx-auto">
-                    <Trash2 className="w-8 h-8 text-red-600" />
+                 <div className={`w-16 h-16 ${confirmData.title.includes('Импорт') || confirmData.title.includes('Добавление') ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'} rounded-2xl flex items-center justify-center mb-6 mx-auto`}>
+                    {confirmData.title.includes('Импорт') || confirmData.title.includes('Добавление') ? <CheckCircle className="w-8 h-8" /> : <Trash2 className="w-8 h-8" />}
                  </div>
                  <h3 className="text-2xl font-black text-gray-900 text-center mb-2 uppercase tracking-tight">{confirmData.title}</h3>
                  <p className="text-gray-500 text-center font-bold mb-8">{confirmData.message}</p>
@@ -1775,9 +1789,9 @@ export default function AdminPanel() {
                         confirmData.onConfirm();
                         setIsConfirmOpen(false);
                       }}
-                      className="py-4 bg-red-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg shadow-red-200 hover:bg-red-700 transition-all hover:-translate-y-0.5 active:translate-y-0"
+                      className={`py-4 ${confirmData.title.includes('Импорт') || confirmData.title.includes('Добавление') ? 'bg-green-600 shadow-green-200 hover:bg-green-700' : 'bg-red-600 shadow-red-200 hover:bg-red-700'} text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg transition-all hover:-translate-y-0.5 active:translate-y-0`}
                     >
-                      Да, удалить
+                      {confirmData.title.includes('Импорт') || confirmData.title.includes('Добавление') ? 'Да, добавить' : 'Да, удалить'}
                     </button>
                  </div>
               </div>

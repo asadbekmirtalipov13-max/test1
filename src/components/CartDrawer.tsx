@@ -433,40 +433,18 @@ export default function CartDrawer() {
 
                               <div className="space-y-4 pt-4 border-t border-gray-100">
                                 <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 ml-2">{language === 'ru' ? 'Способ получения' : 'Qabul qilish usuli'}</p>
-                                <div className="grid grid-cols-2 gap-3">
-                                  <button 
-                                    onClick={() => setDeliveryMethod('pickup')}
-                                    className={`py-3 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all border-2 ${deliveryMethod === 'pickup' ? 'bg-primary text-white border-primary shadow-lg scale-105' : 'bg-white text-gray-400 border-gray-100 hover:border-gray-200'}`}
-                                  >
-                                    {language === 'ru' ? 'Самовывоз' : 'Olib ketish'}
-                                  </button>
-                                  <button 
-                                    onClick={() => setDeliveryMethod('delivery')}
-                                    className={`py-3 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all border-2 ${deliveryMethod === 'delivery' ? 'bg-primary text-white border-primary shadow-lg scale-105' : 'bg-white text-gray-400 border-gray-100 hover:border-gray-200'}`}
-                                  >
-                                    {language === 'ru' ? 'Доставка' : 'Yetkazib berish'}
-                                  </button>
+                                <div className="p-4 bg-primary/5 rounded-xl border-2 border-primary/20 flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+                                      <MapPin className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                      <p className="text-xs font-black text-gray-900 uppercase">{language === 'ru' ? 'Только самовывоз' : 'Faqat olib ketish'}</p>
+                                      <p className="text-[9px] font-bold text-gray-500 uppercase tracking-tight">{language === 'ru' ? 'Заберите заказ в пункте выдачи' : 'Buyurtmani punktimizdan olib keting'}</p>
+                                    </div>
+                                  </div>
+                                  <CheckCircle className="w-5 h-5 text-primary" />
                                 </div>
-                                
-                                <AnimatePresence>
-                                  {deliveryMethod === 'delivery' && (
-                                    <motion.div 
-                                      initial={{ opacity: 0, height: 0 }}
-                                      animate={{ opacity: 1, height: 'auto' }}
-                                      exit={{ opacity: 0, height: 0 }}
-                                      className="relative overflow-hidden"
-                                    >
-                                      <input 
-                                        type="text" 
-                                        placeholder={language === 'ru' ? 'Адрес доставки (Город, улица, дом...)' : 'Yetkazib berish manzili (Shahar, ko\'cha, uy...)'}
-                                        value={address}
-                                        onChange={(e) => setAddress(e.target.value)}
-                                        className={`w-full px-5 py-4 rounded-xl border transition-all outline-none font-bold text-sm shadow-sm ${!address.trim() ? 'border-red-500 bg-red-50 focus:ring-red-200' : 'border-gray-200 bg-gray-50 focus:ring-primary focus:bg-white'}`}
-                                      />
-                                      {!address.trim() && <span className="absolute right-4 top-1/2 -translate-y-1/2 text-red-500 font-bold">*</span>}
-                                    </motion.div>
-                                  )}
-                                </AnimatePresence>
                               </div>
 
                               <div className="bg-gray-50 border border-gray-100 p-6 rounded-3xl mt-4">

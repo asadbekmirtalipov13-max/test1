@@ -115,17 +115,6 @@ export default function Navbar() {
             
             <div className="h-6 w-px bg-gray-200 mx-1" />
 
-            {/* Accessibility Eye Icon for Desktop */}
-            <motion.button
-              whileHover={{ y: -2 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={toggleLargeText}
-              className={`p-2.5 rounded-xl border-2 transition-all shrink-0 ${isLargeText ? 'bg-yellow-400 text-yellow-900 border-yellow-500 shadow-md' : 'bg-gray-50 text-gray-400 border-gray-100 hover:bg-gray-100'}`}
-              title={language === 'ru' ? 'Версия для слабовидящих' : 'Maxsus rejim'}
-            >
-              <Eye className="w-5 h-5 font-black" style={{ strokeWidth: 3 }} />
-            </motion.button>
-
             {user ? (
               <motion.button 
                 whileHover={{ y: -2 }}
@@ -168,10 +157,24 @@ export default function Navbar() {
               )}
             </motion.button>
 
+            {/* Accessibility Eye Icon for Desktop - Before dots, after cart */}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={toggleLargeText}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 transition-all shrink-0 ${isLargeText ? 'bg-indigo-600 text-white border-indigo-700 shadow-lg' : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'}`}
+              title={language === 'ru' ? 'Версия для слабовидящих' : 'Maxsus rejim'}
+            >
+              <Eye className="w-5 h-5" style={{ strokeWidth: 3 }} />
+              <span className="text-[10px] font-black uppercase tracking-widest leading-none">
+                {language === 'ru' ? 'Спец. версия' : 'Maxsus'}
+              </span>
+            </motion.button>
+
             {/* "More" Button (Three dots) */}
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="p-2 ml-2 rounded-xl bg-gray-50 text-gray-700 hover:bg-gray-100 border-2 border-gray-100 transition-all"
+              className={`p-2.5 ml-1 rounded-xl transition-all border-2 ${isOpen ? 'bg-primary text-white border-primary shadow-lg' : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-100'}`}
             >
               <Menu className="w-6 h-6" />
             </button>
@@ -254,22 +257,37 @@ export default function Navbar() {
                 )}
 
                 {/* Updated Language Selector */}
-                <div className="px-5 space-y-3">
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-2">
+                <div className="px-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-500">
+                      {language === 'ru' ? 'Специальный режим' : 'Maxsus rejim'}
+                    </p>
+                    <button 
+                      onClick={toggleLargeText}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-black text-[9px] uppercase tracking-widest transition-all ${isLargeText ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-500'}`}
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      {isLargeText ? (language === 'ru' ? 'ВКЛ' : 'YONIQ') : (language === 'ru' ? 'ВЫКЛ' : 'OCHIQ')}
+                    </button>
+                  </div>
+                  
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
                     {language === 'ru' ? 'Выберите язык' : 'Tilni tanlang'}
                   </p>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-4">
                     <button 
                       onClick={() => handleLangSelect('ru')}
-                      className={`flex items-center justify-center gap-2 py-4 px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${language === 'ru' ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-105' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'}`}
+                      className={`flex flex-col items-center justify-center gap-2 py-6 px-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all border-2 ${language === 'ru' ? 'bg-gray-900 text-white border-gray-900 shadow-xl scale-105' : 'bg-white text-gray-400 border-gray-100 hover:border-gray-200'}`}
                     >
-                      <Globe className="w-4 h-4" /> Русский
+                      <Globe className="w-5 h-5" /> 
+                      <span>Русский</span>
                     </button>
                     <button 
                       onClick={() => handleLangSelect('uz')}
-                      className={`flex items-center justify-center gap-2 py-4 px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${language === 'uz' ? 'bg-primary text-white shadow-lg shadow-primary/20 scale-105' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'}`}
+                      className={`flex flex-col items-center justify-center gap-2 py-6 px-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all border-2 ${language === 'uz' ? 'bg-gray-900 text-white border-gray-900 shadow-xl scale-105' : 'bg-white text-gray-400 border-gray-100 hover:border-gray-200'}`}
                     >
-                      <Globe className="w-4 h-4" /> O'zbek
+                      <Globe className="w-5 h-5" /> 
+                      <span>O'zbek</span>
                     </button>
                   </div>
                 </div>

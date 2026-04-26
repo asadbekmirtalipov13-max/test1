@@ -7,6 +7,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../firebase';
 import { useSiteSettings } from '../context/SiteSettingsContext';
 
+import { updateProfile } from 'firebase/auth';
+
 interface OrderItem {
   id: string;
   quantity: number;
@@ -62,7 +64,24 @@ export default function UserCabinet() {
   const [editingAvatar, setEditingAvatar] = useState(user?.photoURL || '');
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
 
+  useEffect(() => {
+    if (user) {
+      setEditingName(user.displayName || '');
+      setEditingAvatar(user.photoURL || '');
+    }
+  }, [user]);
+
   const { logout } = useAuth();
+
+  // Timer update
+  const [now, setNow] = useState(new Date().getTime());
+  
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(new Date().getTime());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const handleCancelOrder = async (orderId: string) => {
     if (!window.confirm(language === 'ru' ? 'Вы уверены, что хотите отменить заказ?' : 'Haqiqatdan ham buyurtmani bekor qilmoqchimisiz?')) return;
@@ -84,12 +103,22 @@ export default function UserCabinet() {
     if (!user) return;
     setIsUpdatingProfile(true);
     try {
+      // Update Auth Profile
+      await updateProfile(auth.currentUser!, {
+        displayName: editingName,
+        photoURL: editingAvatar
+      });
+      
+      // Update Firestore
       await updateDoc(doc(db, 'users', user.uid), {
         displayName: editingName,
         photoURL: editingAvatar
       });
+      
       setIsEditingProfile(false);
-      alert(language === 'ru' ? 'Профиль обновлен! (Перезайдите для полного обновления)' : 'Profil yangilandi! (To\'liq yangilanish uchun qayta kiring)');
+      alert(language === 'ru' ? 'Профиль успешно обновлен!' : 'Profil muvaffaqiyatli yangilandi!');
+      // Force reload to see changes if context doesn't auto-update
+      window.location.reload();
     } catch (err) {
       console.error(err);
       alert('Error updating profile');
@@ -192,31 +221,50 @@ export default function UserCabinet() {
         <div className="bg-gradient-to-r from-primary to-blue-700 p-8 pt-12 text-white relative">
             <div className="flex flex-col md:flex-row items-center gap-8 relative z-10">
             <div className="relative group">
-              <div className="w-24 h-24 rounded-3xl overflow-hidden bg-white shadow-xl border-4 border-white/20">
-                <img src={isEditingProfile ? (editingAvatar || undefined) : (user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName}&background=random`)} alt={user.displayName || ''} className="w-full h-full object-cover" />
+              <div className="w-32 h-32 rounded-[2.5rem] overflow-hidden bg-white shadow-2xl border-4 border-white/20 relative group">
+                <img 
+                  src={editingAvatar || (user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName}&background=random`)} 
+                  alt={user.displayName || ''} 
+                  className="w-full h-full object-cover transition-transform group-hover:scale-110" 
+                />
+                
+                {isUploading && (
+                  <div className="absolute inset-0 bg-black/60 backdrop-blur-md flex flex-col items-center justify-center z-20">
+                    <motion.div 
+                      animate={{ rotate: 360 }} 
+                      transition={{ repeat: Infinity, duration: 1, ease: "linear" }} 
+                      className="w-10 h-10 border-4 border-white/20 border-t-white rounded-full mb-2" 
+                    />
+                    <span className="text-[10px] font-black uppercase text-white tracking-widest animate-pulse">
+                      {language === 'ru' ? 'Загрузка...' : 'Yuklanmoqda...'}
+                    </span>
+                  </div>
+                )}
+
+                {isEditingProfile && !isUploading && (
+                  <label className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-all duration-300 backdrop-blur-[2px] z-10">
+                    <Camera className="w-8 h-8 text-white mb-2" />
+                    <span className="text-[10px] font-black uppercase text-white tracking-widest text-center px-2">
+                       {language === 'ru' ? 'Сменить фото' : 'Rasmni o\'zgartirish'}
+                    </span>
+                    <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
+                  </label>
+                )}
               </div>
+              
               {isEditingProfile && (
-                <label className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity rounded-3xl text-center p-2 backdrop-blur-[2px]">
-                  <Camera className="w-6 h-6 text-white mb-2" />
-                  <span className="text-[9px] font-black uppercase tracking-widest text-white leading-tight">
-                    {language === 'ru' ? 'Загрузить новый аватар' : 'Yangi avatar yuklash'}
-                  </span>
-                  <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
-                </label>
+                <motion.button 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  onClick={() => document.getElementById('avatar-upload-cabinet')?.click()}
+                  className="absolute -bottom-2 -right-2 p-3 bg-white text-primary rounded-2xl shadow-xl hover:bg-gray-50 transition-all border-2 border-primary/10 z-30"
+                  title={language === 'ru' ? 'Загрузить фото' : 'Rasm yuklash'}
+                >
+                  <Camera className="w-5 h-5 font-black" />
+                  <input id="avatar-upload-cabinet" type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
+                </motion.button>
               )}
             </div>
-            {isEditingProfile && (
-              <div className="flex flex-col gap-2">
-                <button 
-                  onClick={() => document.getElementById('avatar-upload-cabinet')?.click()}
-                  className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-[10px] font-black uppercase tracking-widest text-white flex items-center gap-2 transition-all"
-                >
-                  <Camera className="w-4 h-4" />
-                  {language === 'ru' ? 'Загрузить фото' : 'Rasm yuklash'}
-                </button>
-                <input id="avatar-upload-cabinet" type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
-              </div>
-            )}
             <div className="text-center md:text-left flex-1 min-w-0">
               {isEditingProfile ? (
                  <input 
@@ -370,7 +418,7 @@ export default function UserCabinet() {
                     )}
                   </AnimatePresence>
 
-                  {(order.status === 'need_to_pay' || order.status === 'pending') && (
+                  {order.status === 'need_to_pay' && (
                     <button 
                       onClick={async () => {
                         const confirmMsg = language === 'ru' 
@@ -405,7 +453,6 @@ export default function UserCabinet() {
                                <span className="font-black text-amber-600 text-sm ml-auto">
                                   {(() => {
                                      const createdDate = new Date(order.createdAt).getTime();
-                                     const now = new Date().getTime();
                                      const EightHours = 8 * 60 * 60 * 1000;
                                      const diff = EightHours - (now - createdDate);
                                      if (diff <= 0) return '00:00:00';
