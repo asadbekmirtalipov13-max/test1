@@ -35,17 +35,20 @@ export default function ProductCard({ product, categoryName, isAdmin, onEdit, on
   }, [showMenu]);
 
   const handleShare = async () => {
+    const baseUrl = window.location.origin + window.location.pathname;
+    const shareUrl = `${baseUrl}#product-${product.id}`;
+    
     const shareData = {
-      title: product?.name?.[language],
-      text: product?.description?.[language],
-      url: window.location.href,
+      title: product?.name?.[language] || 'Product',
+      text: product?.description?.[language] || '',
+      url: shareUrl,
     };
 
     try {
       if (navigator.share) {
         await navigator.share(shareData);
       } else {
-        await navigator.clipboard.writeText(window.location.href);
+        await navigator.clipboard.writeText(shareUrl);
         alert(language === 'ru' ? 'Ссылка скопирована в буфер обмена!' : 'Havola vauferga nusxalandi!');
       }
     } catch (err) {

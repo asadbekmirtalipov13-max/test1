@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
-import { Package, Clock, CheckCircle, Truck, XCircle, ChevronLeft, CreditCard, MapPin, Link2, ShoppingCart } from 'lucide-react';
+import { Package, Clock, CheckCircle, Truck, XCircle, ChevronLeft, CreditCard, MapPin, Link2, ShoppingCart, Camera, Save, Edit3, LogOut, Info, ChevronUp, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../firebase';
 import { useSiteSettings } from '../context/SiteSettingsContext';
@@ -55,6 +55,14 @@ export default function UserCabinet() {
   const [paymentStep, setPaymentStep] = useState<'methods' | 'instructions' | 'upload' | 'confirm'>('methods');
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  
+  // Profile editing state
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editingName, setEditingName] = useState(user?.displayName || '');
+  const [editingAvatar, setEditingAvatar] = useState(user?.photoURL || '');
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
+
+  const { logout } = useAuth();
 
   const handleCancelOrder = async (orderId: string) => {
     if (!window.confirm(language === 'ru' ? 'Вы уверены, что хотите отменить заказ?' : 'Haqiqatdan ham buyurtmani bekor qilmoqchimisiz?')) return;
@@ -69,6 +77,52 @@ export default function UserCabinet() {
     } catch (error) {
       console.error('Error cancelling order:', error);
       alert('Error: ' + error);
+    }
+  };
+
+  const handleUpdateProfile = async () => {
+    if (!user) return;
+    setIsUpdatingProfile(true);
+    try {
+      await updateDoc(doc(db, 'users', user.uid), {
+        displayName: editingName,
+        photoURL: editingAvatar
+      });
+      setIsEditingProfile(false);
+      alert(language === 'ru' ? 'Профиль обновлен! (Перезайдите для полного обновления)' : 'Profil yangilandi! (To\'liq yangilanish uchun qayta kiring)');
+    } catch (err) {
+      console.error(err);
+      alert('Error updating profile');
+    } finally {
+      setIsUpdatingProfile(false);
+    }
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve((reader.result as string).split(',')[1]);
+        reader.onerror = reject;
+      });
+
+      const formData = new FormData();
+      formData.append('image', base64);
+      const apiKey = '99ba8daf990b634a58e3d47eae7cb907';
+      const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, { method: 'POST', body: formData });
+      const data = await response.json();
+      if (data.success) {
+        setEditingAvatar(data.data.url);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -134,13 +188,66 @@ export default function UserCabinet() {
         </h1>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-8 flex items-center gap-4">
-        <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-2xl uppercase">
-          {user.displayName?.charAt(0) || user.email?.charAt(0) || 'U'}
-        </div>
-        <div>
-          <h2 className="text-xl font-bold">{user.displayName || (language === 'ru' ? 'Пользователь' : 'Foydalanuvchi')}</h2>
-          <p className="text-gray-500">{user.email}</p>
+      <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100 mb-8 mt-4">
+        <div className="bg-gradient-to-r from-primary to-blue-700 p-8 pt-12 text-white relative">
+          <div className="flex flex-col md:flex-row items-center gap-8 relative z-10">
+            <div className="relative group">
+              <div className="w-24 h-24 rounded-3xl overflow-hidden bg-white shadow-xl border-4 border-white/20">
+                <img src={isEditingProfile ? editingAvatar : (user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName}&background=random`)} alt={user.displayName || ''} className="w-full h-full object-cover" />
+              </div>
+              {isEditingProfile && (
+                <label className="absolute inset-0 flex items-center justify-center bg-black/40 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity rounded-3xl">
+                  <Camera className="w-6 h-6 text-white" />
+                  <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
+                </label>
+              )}
+            </div>
+            <div className="text-center md:text-left flex-1 min-w-0">
+              {isEditingProfile ? (
+                 <input 
+                   type="text" 
+                   value={editingName} 
+                   onChange={(e) => setEditingName(e.target.value)}
+                   className="bg-white/10 border-2 border-white/20 rounded-xl px-4 py-2 text-2xl font-black outline-none focus:bg-white/20 transition-all w-full max-w-md"
+                 />
+              ) : (
+                <>
+                  <h1 className="text-3xl font-black uppercase tracking-tight truncate">{user.displayName}</h1>
+                  <p className="text-blue-100 font-medium opacity-80">{user.email}</p>
+                </>
+              )}
+            </div>
+            <div className="flex gap-2">
+               {isEditingProfile ? (
+                  <>
+                    <button 
+                      onClick={handleUpdateProfile} 
+                      disabled={isUpdatingProfile || isUploading}
+                      className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl font-bold transition flex items-center gap-2"
+                    >
+                      {isUpdatingProfile ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save className="w-4 h-4" />}
+                      {language === 'ru' ? 'Сохранить' : 'Saqlash'}
+                    </button>
+                    <button 
+                      onClick={() => { setIsEditingProfile(false); setEditingName(user.displayName || ''); setEditingAvatar(user.photoURL || ''); }} 
+                      className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold transition"
+                    >
+                      {language === 'ru' ? 'Отмена' : 'Bekor qilish'}
+                    </button>
+                  </>
+               ) : (
+                 <button onClick={() => setIsEditingProfile(true)} className="p-3 bg-white/10 hover:bg-white/20 rounded-xl border border-white/20 transition backdrop-blur-sm shadow-sm group">
+                   <Edit3 className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
+                 </button>
+               )}
+               <button onClick={logout} className="p-3 bg-white/10 hover:bg-red-500/20 rounded-xl border border-white/20 transition backdrop-blur-sm shadow-sm group">
+                 <LogOut className="w-5 h-5 text-white group-hover:scale-110 transition-transform" />
+               </button>
+            </div>
+          </div>
+          
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-400/10 rounded-full translate-y-1/2 -translate-x-1/2 blur-2xl pointer-events-none" />
         </div>
       </div>
 
@@ -172,8 +279,12 @@ export default function UserCabinet() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className="bg-white rounded-xl border border-gray-200 p-6 flex flex-col md:flex-row gap-6 justify-between cursor-default hover:shadow-md transition-shadow"
+                className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-md transition-all group"
               >
+                <div 
+                  onClick={() => setShowOrderDetails(showOrderDetails === order.id ? null : order.id)}
+                  className="p-6 flex flex-col md:flex-row gap-6 justify-between cursor-pointer hover:bg-gray-50/50 transition-colors"
+                >
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-3">
                     <span className="font-mono font-bold bg-gray-100 text-gray-800 px-3 py-1 rounded-lg text-sm">
@@ -217,7 +328,10 @@ export default function UserCabinet() {
                               <img src={item.image || 'https://via.placeholder.com/50'} alt="" className="w-12 h-12 object-cover rounded-lg border border-gray-100" />
                               <div className="flex-1 min-w-0">
                                 <p className="font-black text-sm text-gray-900 truncate">{item.name?.[language as 'ru' | 'uz'] || (language === 'ru' ? 'Товар' : 'Mahsulot')}</p>
-                                <p className="text-xs text-gray-500 font-bold">{item.quantity} x {item.price?.toLocaleString()} UZS</p>
+                                <p className="text-xs text-gray-500 font-bold flex items-center gap-2">
+                                  {item.code && <span className="bg-gray-100 px-1 rounded text-[9px]">{item.code}</span>}
+                                  {item.quantity} x {item.price?.toLocaleString()} UZS
+                                </p>
                               </div>
                               <div className="text-right">
                                 <p className="text-xs font-black text-primary">{( (item.price || 0) * item.quantity).toLocaleString()} UZS</p>
@@ -414,7 +528,7 @@ export default function UserCabinet() {
                                                const formData = new FormData();
                                                formData.append('image', file);
                                                
-                                               const resp = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+                                               const resp = await fetch(`https://api.imgbb.com/1/upload?key=99ba8daf990b634a58e3d47eae7cb907`, {
                                                   method: 'POST',
                                                   body: formData
                                                });
@@ -423,6 +537,8 @@ export default function UserCabinet() {
                                                   const url = data.data.url;
                                                   setUploadedImageUrl(url);
                                                   setPaymentStep('confirm');
+                                               } else {
+                                                  alert(language === 'ru' ? 'Ошибка загрузки: ' + (data.error?.message || 'Неизвестная ошибка') : 'Yuklashda xato: ' + (data.error?.message || 'Noma\'lum xato'));
                                                }
                                             } catch (err) {
                                                console.error("Upload error:", err);
@@ -555,7 +671,8 @@ export default function UserCabinet() {
                             <p className="text-xs font-bold text-gray-900 truncate">
                                {typeof item.name === 'object' && item.name ? (item.name as any)[language] : (item.name || '')}
                             </p>
-                            <p className="text-[10px] font-black uppercase text-primary tracking-tighter">
+                            <p className="text-[10px] font-black uppercase text-primary tracking-tighter flex items-center gap-2">
+                               {item.code && <span className="bg-primary/10 px-1 rounded">{item.code}</span>}
                                {item.quantity} шт × {item.price?.toLocaleString()} UZS
                                {item.discount > 0 && <span className="text-green-600 ml-1">(-{item.discount}%)</span>}
                             </p>
@@ -589,7 +706,7 @@ export default function UserCabinet() {
                   )}
                 </div>
                 
-                <div className="flex flex-col justify-end md:items-end border-t md:border-t-0 md:border-l border-gray-100 pt-4 md:pt-0 md:pl-6 min-w-[200px]">
+                <div className="flex flex-col justify-end md:items-end border-t md:border-t-0 md:border-l border-gray-100 pt-4 md:pt-0 md:pl-6 min-w-[200px] relative">
                   <div className="text-sm text-gray-500 mb-1">
                     {language === 'ru' ? 'Итоговая сумма:' : 'Jami summa:'}
                   </div>
@@ -601,8 +718,12 @@ export default function UserCabinet() {
                       {language === 'ru' ? 'Скидка:' : 'Chegirma:'} {order.discount}%
                     </div>
                   )}
+                  <div className="mt-4 md:mt-auto flex justify-end">
+                    {showOrderDetails === order.id ? <ChevronUp className="w-5 h-5 text-primary" /> : <ChevronDown className="w-5 h-5 text-gray-400 animate-bounce" />}
+                  </div>
                 </div>
-              </motion.div>
+              </div>
+            </motion.div>
             );
           })}
         </div>

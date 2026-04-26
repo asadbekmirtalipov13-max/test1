@@ -1456,13 +1456,20 @@ export default function AdminPanel() {
                </div>
             </div>
           </div>
-          <div className="space-y-6">
-            {orders.filter(o => !orderSearchQuery || o.code.toLowerCase().includes(orderSearchQuery.toLowerCase())).map(order => (
-              <div key={order.id} className="border border-gray-200 rounded-3xl overflow-hidden hover:border-primary/30 transition-all shadow-sm hover:shadow-md">
-                <div className="bg-gray-50/80 px-8 py-4 border-b border-gray-200 flex flex-col md:flex-row justify-between gap-4 items-center">
+          <div className="space-y-4">
+            {orders.filter(o => !orderSearchQuery || o.code.toLowerCase().includes(orderSearchQuery.toLowerCase())).map(order => {
+              const isExpanded = expandedOrders.includes(order.id);
+              const toggleExpand = () => setExpandedOrders(prev => prev.includes(order.id) ? prev.filter(id => id !== order.id) : [...prev, order.id]);
+
+              return (
+              <div key={order.id} className="border border-gray-200 rounded-2xl overflow-hidden hover:border-primary/30 transition-all shadow-sm bg-white">
+                <div 
+                  onClick={toggleExpand}
+                  className="px-6 py-4 flex flex-col md:flex-row justify-between gap-4 items-center cursor-pointer hover:bg-gray-50 transition-colors"
+                >
                   <div className="flex items-center gap-4">
-                    <div className="p-3 bg-white rounded-2xl shadow-sm border border-gray-100">
-                       <CheckCircle className={`w-6 h-6 ${
+                    <div className="p-2 bg-gray-50 rounded-xl border border-gray-100 flex-shrink-0">
+                       <CheckCircle className={`w-5 h-5 ${
                          order.status === 'need_to_pay' ? 'text-gray-400' :
                          order.status === 'pending' ? 'text-yellow-500' :
                          order.status === 'confirmed' ? 'text-blue-500' :
@@ -1471,8 +1478,8 @@ export default function AdminPanel() {
                     </div>
                     <div>
                       <div className="flex items-center gap-3">
-                        <span className="text-xl font-black tracking-tighter text-gray-900 uppercase">{order.code}</span>
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                        <span className="text-lg font-black tracking-tighter text-gray-900 uppercase">{order.code}</span>
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
                           order.status === 'need_to_pay' ? 'bg-gray-200 text-gray-600' :
                           order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                           order.status === 'confirmed' ? 'bg-blue-100 text-blue-800' :
@@ -1482,194 +1489,194 @@ export default function AdminPanel() {
                           {order.status}
                         </span>
                       </div>
-                      <p className="text-xs text-gray-400 font-bold uppercase mt-1">{new Date(order.createdAt).toLocaleString()}</p>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase">{new Date(order.createdAt).toLocaleDateString()} {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-black text-gray-900 tracking-tight">{order.total?.toLocaleString()} UZS</p>
-                    <p className="text-xs font-black text-primary uppercase tracking-widest">{order.userName}</p>
+                  
+                  <div className="flex items-center gap-6">
+                    <div className="text-right hidden sm:block">
+                      <p className="text-sm font-black text-gray-900 uppercase tracking-widest">{order.userName}</p>
+                      <p className="text-[10px] text-gray-400">{order.userPhone}</p>
+                    </div>
+                    <div className="text-right min-w-[120px]">
+                      <p className="text-lg font-black text-primary tracking-tight">{order.total?.toLocaleString()} UZS</p>
+                    </div>
+                    <div className="flex items-center justify-center p-2 rounded-lg bg-gray-50 text-gray-400 group-hover:text-primary transition-colors">
+                       {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                    </div>
                   </div>
                 </div>
                 
-                <div className="p-8 grid grid-cols-1 lg:grid-cols-2 gap-12">
-                   <div className="space-y-6">
-                      <div>
-                        <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-4 flex items-center gap-2">
-                           <ShoppingCart className="w-4 h-4" /> Состав заказа
-                        </h4>
-                        <div className="space-y-3">
-                          {order.items?.map((item: any, idx: number) => (
-                            <div key={idx} className="flex gap-3 items-center p-3 bg-white rounded-xl border border-gray-100 shadow-sm relative group">
-                               <img src={item.image} alt="" className="w-12 h-12 rounded-lg object-cover border" />
-                               <div className="flex-1 min-w-0">
-                                 <p className="font-black text-sm text-gray-900 truncate">
-                                   {typeof item.name === 'object' ? (item.name[language] || item.name['ru'] || 'Товар') : (item.name || 'Товар')}
-                                 </p>
-                                 <p className="text-xs text-gray-500 font-bold group-hover:text-primary transition-colors italic">
-                                   {typeof item.name === 'object' ? (item.name[language === 'ru' ? 'uz' : 'ru'] || '') : ''}
-                                 </p>
-                               </div>
-                               <div className="text-right">
-                                 <p className="text-xs font-black text-gray-400">{item.quantity} шт.</p>
-                                 <p className="text-sm font-black text-gray-900">{(item.price * item.quantity).toLocaleString()} UZS</p>
-                               </div>
-                            </div>
-                          ))}
-                          
-                          {order.promocode && (
-                            <div className="p-3 bg-green-50 border border-green-100 rounded-xl flex justify-between items-center">
-                              <span className="text-[10px] font-black text-green-700 uppercase tracking-widest">Промокод</span>
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-black text-green-700 font-mono tracking-tighter">{order.promocode}</span>
-                                <div className="p-1 px-2 bg-green-100 rounded-md text-[9px] font-black text-green-800">ИСПОЛЬЗОВАН</div>
-                              </div>
-                            </div>
-                          )}
-                          
-                          <div className="pt-2 flex justify-between text-[11px] font-black text-gray-400 divide-x divide-gray-100 bg-gray-50 rounded-xl p-3">
-                            <div className="flex-1 px-2">
-                               <p className="uppercase tracking-widest mb-1 text-[9px]">Подытог</p>
-                               <p className="text-gray-700">{order.subtotal?.toLocaleString()} UZS</p>
-                            </div>
-                            {order.discount > 0 && (
-                            <div className="flex-1 px-2">
-                               <p className="uppercase tracking-widest mb-1 text-[9px] text-green-600">Скидка</p>
-                               <p className="text-green-700">-{order.discount}%</p>
-                            </div>
-                            )}
-                            <div className="flex-1 px-2">
-                               <p className="uppercase tracking-widest mb-1 text-[9px] text-primary">Итого</p>
-                               <p className="text-primary text-sm">{order.total?.toLocaleString()} UZS</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="p-5 rounded-2xl bg-blue-50/50 border border-blue-100">
-                         <h4 className="text-xs font-black uppercase tracking-widest text-blue-400 mb-3 flex items-center gap-2">
-                           <User className="w-4 h-4" /> Данные клиента
-                         </h4>
-                         <p className="font-bold text-blue-900">{order.userName}</p>
-                         <p className="text-sm text-blue-700">{order.userPhone}</p>
-                         <p className="text-sm text-blue-700">{order.userContact}</p>
-                      </div>
-                   </div>
-
-                   <div className="space-y-6">
-                      <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-4">
-                        <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-2 flex items-center gap-2">
-                          <Edit className="w-4 h-4" /> Управление заказом
-                        </h4>
-                        
-                        <div className="grid grid-cols-1 gap-4">
-                          <div>
-                            <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Статус</label>
-                            <select 
-                              value={order.status}
-                              onChange={async (e) => await updateDoc(doc(db, 'orders', order.id), { status: e.target.value })}
-                              className="w-full p-3 rounded-xl border border-gray-200 font-bold bg-white"
-                            >
-                               <option value="need_to_pay">Нужна оплата</option>
-                               <option value="pending">Ожидает подтверждения</option>
-                               <option value="confirmed">В процессе приготовления</option>
-                               <option value="ready">Готов к выдаче</option>
-                               <option value="completed">Завершен</option>
-                               <option value="cancelled">Отменен</option>
-                            </select>
-                          </div>
-                          
-                          {order.status === 'confirmed' && (
-                             <div className="grid grid-cols-2 gap-2">
-                               <div>
-                                 <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Время готовности</label>
-                                 <input 
-                                   type="text"
-                                   placeholder="например, 6"
-                                   value={order.readinessTime?.toString().split(' ')[0] || ''}
-                                   className="w-full p-3 rounded-xl border border-gray-200 font-bold bg-white"
-                                   onChange={async (e) => {
-                                      const val = e.target.value;
-                                      const unit = order.readinessTime?.toString().split(' ')[1] || 'мин';
-                                      await updateDoc(doc(db, 'orders', order.id), { readinessTime: `${val} ${unit}`.trim() });
-                                   }}
-                                 />
-                               </div>
-                               <div>
-                                 <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Ед. изм.</label>
-                                 <select 
-                                   value={order.readinessTime?.toString().split(' ')[1] || 'мин'}
-                                   className="w-full p-3 rounded-xl border border-gray-200 font-bold bg-white"
-                                   onChange={async (e) => {
-                                      const unit = e.target.value;
-                                      const val = order.readinessTime?.toString().split(' ')[0] || '0';
-                                      await updateDoc(doc(db, 'orders', order.id), { readinessTime: `${val} ${unit}`.trim() });
-                                   }}
-                                 >
-                                    <option value="мин">Мин</option>
-                                    <option value="час">Час</option>
-                                    <option value="дня">Дня</option>
-                                 </select>
-                               </div>
-                             </div>
-                          )}
-                          
-                          <div>
-                            <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Комментарий админа (виден клиенту)</label>
-                            <textarea 
-                              value={order.siteComment || ''}
-                              onChange={async (e) => await updateDoc(doc(db, 'orders', order.id), { siteComment: e.target.value })}
-                              placeholder="Ваш комментарий..."
-                              className="w-full p-3 rounded-xl border border-gray-200 font-medium h-24 bg-white"
-                            />
-                          </div>
-
-                                  <div className="flex-1 p-2 bg-gray-50/50 rounded-xl space-y-2 mt-4 border border-gray-100">
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 px-2">{language === 'ru' ? 'Товары в заказе' : 'Buyurtma tovarlari'}</p>
-                                    {order.items?.map((item: any, idx: number) => (
-                                      <div key={idx} className="flex py-1 px-2 bg-white rounded-lg border border-gray-100 items-center justify-between gap-3 shadow-sm hover:border-primary/20 transition-all">
-                                        <div className="flex items-center gap-3 min-w-0">
-                                          <img src={item.image || 'https://via.placeholder.com/50'} className="w-10 h-10 rounded shrink-0 object-cover border" alt="" />
-                                          <div className="min-w-0">
-                                            <p className="text-[11px] font-bold text-gray-800 truncate">
-                                              {item.name ? (typeof item.name === 'object' ? (item.name[language] || item.name['ru'] || '') : item.name) : '---'}
-                                            </p>
-                                            {item.discount > 0 && <span className="text-[9px] text-green-600 font-bold italic">-{item.discount}%</span>}
-                                          </div>
-                                        </div>
-                                        <div className="text-right whitespace-nowrap">
-                                          <span className="text-[10px] font-black text-gray-400">{item.quantity} x </span>
-                                          <span className="text-[11px] font-bold text-primary">{(item.price || 0).toLocaleString()} UZS</span>
-                                        </div>
-                                      </div>
-                                    ))}
+                <AnimatePresence>
+                  {isExpanded && (
+                    <motion.div 
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="overflow-hidden bg-white"
+                    >
+                      <div className="p-6 pt-0 border-t border-gray-50 grid grid-cols-1 lg:grid-cols-2 gap-8 mt-6">
+                         <div className="space-y-6">
+                            <div>
+                              <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4 flex items-center gap-2">
+                                 <ShoppingCart className="w-3.5 h-3.5" /> Состав заказа
+                              </h4>
+                              <div className="space-y-3">
+                                {order.items?.map((item: any, idx: number) => (
+                                  <div key={idx} className="flex gap-3 items-center p-3 bg-gray-50 rounded-xl border border-gray-100 shadow-sm relative group">
+                                     <img src={item.image} alt="" className="w-10 h-10 rounded-lg object-cover border" />
+                                     <div className="flex-1 min-w-0">
+                                       <p className="font-black text-xs text-gray-900 truncate">
+                                         {typeof item.name === 'object' ? (item.name[language] || item.name['ru'] || 'Товар') : (item.name || 'Товар')}
+                                       </p>
+                                     </div>
+                                     <div className="text-right">
+                                       <p className="text-[10px] font-black text-gray-400">{item.quantity} шт.</p>
+                                       <p className="text-xs font-black text-gray-900">{(item.price * item.quantity).toLocaleString()} UZS</p>
+                                     </div>
+                                  </div>
+                                ))}
+                                
                                 {order.promocode && (
-                                  <div className="px-2 py-1 flex justify-between bg-green-50 rounded-lg">
-                                    <span className="text-[10px] font-black text-green-700">ПРОМОКОД:</span>
-                                    <span className="text-[10px] font-black text-green-700 font-mono tracking-widest">{order.promocode}</span>
+                                  <div className="p-2 bg-green-50 border border-green-100 rounded-xl flex justify-between items-center px-4">
+                                    <span className="text-[9px] font-black text-green-700 uppercase tracking-widest">Промокод</span>
+                                    <span className="text-xs font-black text-green-700 font-mono tracking-tighter">{order.promocode}</span>
                                   </div>
                                 )}
-                              </div>
-                              
-                              {order.paymentScreenshot && (
-                            <div className="mt-4">
-                              <label className="block text-[10px] font-black uppercase tracking-widest text-red-400 mb-2">Прикрепленный чек / Скриншот</label>
-                              <a href={order.paymentScreenshot} target="_blank" rel="noopener noreferrer" className="block relative group overflow-hidden rounded-2xl border border-gray-200 shadow-sm transition-all hover:border-red-200">
-                                <img src={order.paymentScreenshot} alt="Payment Check" className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-500" />
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                  <span className="text-white font-black uppercase tracking-widest text-xs">Открыть оригинал</span>
+                                
+                                <div className="pt-2 flex justify-between text-[10px] font-black text-gray-400 divide-x divide-gray-100 bg-gray-50 rounded-xl p-3">
+                                  <div className="flex-1 px-2 text-center">
+                                     <p className="uppercase tracking-widest mb-1 text-[8px]">Подытог</p>
+                                     <p className="text-gray-700">{order.subtotal?.toLocaleString()} UZS</p>
+                                  </div>
+                                  {order.discount > 0 && (
+                                  <div className="flex-1 px-2 text-center">
+                                     <p className="uppercase tracking-widest mb-1 text-[8px] text-green-600">Скидка</p>
+                                     <p className="text-green-700">-{order.discount}%</p>
+                                  </div>
+                                  )}
+                                  <div className="flex-1 px-2 text-center">
+                                     <p className="uppercase tracking-widest mb-1 text-[8px] text-primary">Итого</p>
+                                     <p className="text-primary text-xs">{order.total?.toLocaleString()} UZS</p>
+                                  </div>
                                 </div>
-                              </a>
+                              </div>
                             </div>
-                          )}
+                            
+                            <div className="p-4 rounded-xl bg-blue-50/50 border border-blue-100">
+                               <h4 className="text-[10px] font-black uppercase tracking-widest text-blue-400 mb-3 flex items-center gap-2">
+                                 <User className="w-3.5 h-3.5" /> Данные клиента
+                               </h4>
+                               <div className="grid grid-cols-2 gap-4">
+                                  <div>
+                                     <p className="text-[8px] font-black uppercase text-gray-400">Имя</p>
+                                     <p className="font-bold text-sm text-blue-900">{order.userName}</p>
+                                  </div>
+                                  <div>
+                                     <p className="text-[8px] font-black uppercase text-gray-400">Телефон</p>
+                                     <p className="text-sm font-bold text-blue-700">{order.userPhone}</p>
+                                  </div>
+                                  <div className="col-span-2">
+                                     <p className="text-[8px] font-black uppercase text-gray-400">Telegram/Insta</p>
+                                     <p className="text-sm font-bold text-blue-700">{order.userContact}</p>
+                                  </div>
+                               </div>
+                            </div>
+
+                            {order.paymentScreenshot && (
+                              <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
+                                 <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3">Чек об оплате</h4>
+                                 <a href={order.paymentScreenshot} target="_blank" rel="noopener noreferrer" className="block relative aspect-video rounded-xl overflow-hidden border border-gray-200 group">
+                                    <img src={order.paymentScreenshot} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                       <span className="text-[10px] font-black text-white uppercase tracking-widest bg-black/40 px-3 py-1 rounded-full">Открыть фото</span>
+                                    </div>
+                                 </a>
+                                 <p className="text-[9px] text-gray-400 mt-2 font-bold uppercase tracking-wider text-center">{order.paymentMethod || 'Не указан'}</p>
+                              </div>
+                            )}
+                         </div>
+
+                         <div className="space-y-6">
+                            <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm space-y-4">
+                              <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 flex items-center gap-2">
+                                <Edit className="w-3.5 h-3.5" /> Управление
+                              </h4>
+                              
+                              <div className="grid grid-cols-1 gap-4">
+                                <div>
+                                  <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 ml-1">Статус заказа</label>
+                                  <select 
+                                    value={order.status}
+                                    onChange={async (e) => await updateDoc(doc(db, 'orders', order.id), { status: e.target.value })}
+                                    className="w-full p-2.5 rounded-lg border border-gray-200 font-bold bg-gray-50 focus:bg-white text-sm"
+                                  >
+                                     <option value="need_to_pay">Нужна оплата</option>
+                                     <option value="pending">На подтверждении</option>
+                                     <option value="confirmed">В процессе</option>
+                                     <option value="ready">Готов к выдаче</option>
+                                     <option value="completed">Завершен</option>
+                                     <option value="cancelled">Отменен</option>
+                                  </select>
+                                </div>
+                                
+                                {order.status === 'confirmed' && (
+                                   <div className="grid grid-cols-2 gap-2 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                                     <div>
+                                       <label className="block text-[8px] font-black uppercase tracking-widest text-gray-400 mb-1 ml-1">Время</label>
+                                       <input 
+                                         type="text"
+                                         placeholder="6"
+                                         value={order.readinessTime?.toString().split(' ')[0] || ''}
+                                         className="w-full p-2 rounded-lg border border-gray-200 font-bold bg-white text-sm"
+                                         onChange={async (e) => {
+                                            const val = e.target.value;
+                                            const unit = order.readinessTime?.toString().split(' ')[1] || 'мин';
+                                            await updateDoc(doc(db, 'orders', order.id), { readinessTime: `${val} ${unit}`.trim() });
+                                         }}
+                                       />
+                                     </div>
+                                     <div>
+                                       <label className="block text-[8px] font-black uppercase tracking-widest text-gray-400 mb-1 ml-1">Ед. изм.</label>
+                                       <select 
+                                         value={order.readinessTime?.toString().split(' ')[1] || 'мин'}
+                                         onChange={async (e) => {
+                                            const val = order.readinessTime?.toString().split(' ')[0] || '';
+                                            const unit = e.target.value;
+                                            await updateDoc(doc(db, 'orders', order.id), { readinessTime: `${val} ${unit}`.trim() });
+                                         }}
+                                         className="w-full p-2.5 rounded-lg border border-gray-200 font-bold bg-gray-50 focus:bg-white text-sm"
+                                       >
+                                         <option value="мин">мин</option>
+                                         <option value="час">час</option>
+                                         <option value="дн">дн</option>
+                                       </select>
+                                     </div>
+                                   </div>
+                                 )}
+                                 
+                                 <div className="pt-2">
+                                   <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 ml-1">Комментарий админа</label>
+                                   <textarea 
+                                     value={order.siteComment || ''}
+                                     onChange={async (e) => await updateDoc(doc(db, 'orders', order.id), { siteComment: e.target.value })}
+                                     className="w-full p-3 rounded-lg border border-gray-200 font-bold bg-gray-50 focus:bg-white text-xs h-20"
+                                     placeholder="Виден клиенту..."
+                                   />
+                                 </div>
+                               </div>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                   </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+                        </motion.div>
+                     )}
+                   </AnimatePresence>
+                 </div>
+                );
+              })}
+           </div>
+         </div>
+       )}
 
       {/* Deletion Confirmation Modal */}
       <AnimatePresence>

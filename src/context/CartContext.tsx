@@ -14,6 +14,8 @@ interface CartContextType {
   cartCount: number;
   isCartOpen: boolean;
   setIsCartOpen: (isOpen: boolean) => void;
+  contactInfo: { phone: string; contact: string };
+  setContactInfo: (info: { phone: string; contact: string }) => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -21,6 +23,15 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [contactInfo, setContactInfo] = useState<{ phone: string; contact: string }>(() => {
+    const saved = localStorage.getItem('app_contact_info');
+    return saved ? JSON.parse(saved) : { phone: '+998', contact: '' };
+  });
+
+  const handleSetContactInfo = (info: { phone: string; contact: string }) => {
+    setContactInfo(info);
+    localStorage.setItem('app_contact_info', JSON.stringify(info));
+  };
 
   const addToCart = (id: string) => {
     setItems(prev => {
@@ -53,7 +64,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const cartCount = items.reduce((acc, item) => acc + item.quantity, 0);
 
   return (
-    <CartContext.Provider value={{ items, addToCart, removeFromCart, updateQuantity, clearCart, cartCount, isCartOpen, setIsCartOpen }}>
+    <CartContext.Provider value={{ items, addToCart, removeFromCart, updateQuantity, clearCart, cartCount, isCartOpen, setIsCartOpen, contactInfo, setContactInfo: handleSetContactInfo }}>
       {children}
     </CartContext.Provider>
   );

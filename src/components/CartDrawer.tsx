@@ -10,7 +10,7 @@ import { collection, addDoc, query, where, getDocs, doc, setDoc, updateDoc, incr
 import { db } from '../firebase';
 
 export default function CartDrawer() {
-  const { items, addToCart, removeFromCart, updateQuantity, isCartOpen, setIsCartOpen, clearCart } = useCart();
+  const { items, addToCart, removeFromCart, updateQuantity, isCartOpen, setIsCartOpen, clearCart, contactInfo: storedContactInfo, setContactInfo: setStoredContactInfo } = useCart();
   const { t, language } = useLanguage();
   const { products } = useStoreData();
   const siteSettings = useSiteSettings();
@@ -23,13 +23,31 @@ export default function CartDrawer() {
   const [orderCode, setOrderCode] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const [phone, setPhone] = useState('');
-  const [contactInfo, setContactInfo] = useState('');
+  const [phone, setPhone] = useState(storedContactInfo.phone || '+998');
+  const [contactInfo, setContactInfo] = useState(storedContactInfo.contact || '');
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod | null>(null);
   const [paymentStep, setPaymentStep] = useState<1 | 2>(1);
+
+  // Sync back to context on change
+  const handleContactChange = (field: 'phone' | 'contact', value: string) => {
+    if (field === 'phone') {
+      // Ensure +998 stays at the start if it was there
+      if (value.startsWith('+998') || value === '+99' || value === '+' || value === '') {
+         setPhone(value);
+         setStoredContactInfo({ phone: value, contact: contactInfo });
+      } else if (!value.startsWith('+')) {
+         const newVal = '+998' + value.replace(/\D/g, '');
+         setPhone(newVal);
+         setStoredContactInfo({ phone: newVal, contact: contactInfo });
+      }
+    } else {
+      setContactInfo(value);
+      setStoredContactInfo({ phone, contact: value });
+    }
+  };
 
   const cartItems = items.map(item => {
     const product = products.find(p => p.id === item.id);
@@ -108,7 +126,11 @@ export default function CartDrawer() {
         const apiKey = '99ba8daf990b634a58e3d47eae7cb907';
         const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, { method: 'POST', body: formData });
         const data = await response.json();
-        if (data.success) screenshotUrl = data.data.url;
+        if (data.success) {
+          screenshotUrl = data.data.url;
+        } else {
+          alert(language === 'ru' ? 'Ошибка загрузки чека: ' + (data.error?.message || '') : 'Chekni yuklashda xato: ' + (data.error?.message || ''));
+        }
       } catch (err) {
         console.error('Upload error:', err);
       } finally {
@@ -134,7 +156,8 @@ export default function CartDrawer() {
           quantity: i.quantity, 
           name: i.product?.name, 
           price: i.product?.price,
-          image: i.product?.image
+          image: i.product?.image,
+          code: i.product?.code
         })),
         subtotal,
         discount,
@@ -384,17 +407,17 @@ export default function CartDrawer() {
                                 type="tel" 
                                 placeholder={language === 'ru' ? 'Номер телефона (обязательно)' : 'Telefon raqami (majburiy)'}
                                 value={phone}
-                                onChange={(e) => setPhone(e.target.value)}
-                                className={`w-full px-5 py-4 rounded-xl border transition-all outline-none font-bold text-sm shadow-sm ${!phone.trim() ? 'border-red-500 bg-red-50 focus:ring-red-200' : 'border-gray-200 bg-gray-50 focus:ring-primary focus:bg-white'}`}
+                                onChange={(e) => handleContactChange('phone', e.target.value)}
+                                className={`w-full px-5 py-4 rounded-xl border transition-all outline-none font-bold text-sm shadow-sm ${!phone.trim() || phone === '+998' ? 'border-red-500 bg-red-50 focus:ring-red-200' : 'border-gray-200 bg-gray-50 focus:ring-primary focus:bg-white'}`}
                               />
-                              {!phone.trim() && <span className="absolute right-4 top-1/2 -translate-y-1/2 text-red-500 font-bold">*</span>}
+                              {(!phone.trim() || phone === '+998') && <span className="absolute right-4 top-1/2 -translate-y-1/2 text-red-500 font-bold">*</span>}
                             </div>
                             <div className="relative">
                               <input 
                                 type="text" 
                                 placeholder={language === 'ru' ? 'Telegram / Instagram (обязательно)' : 'Telegram / Instagram (majburiy)'}
                                 value={contactInfo}
-                                onChange={(e) => setContactInfo(e.target.value)}
+                                onChange={(e) => handleContactChange('contact', e.target.value)}
                                 className={`w-full px-5 py-4 rounded-xl border transition-all outline-none font-bold text-sm shadow-sm ${!contactInfo.trim() ? 'border-red-500 bg-red-50 focus:ring-red-200' : 'border-gray-200 bg-gray-50 focus:ring-primary focus:bg-white'}`}
                               />
                               {!contactInfo.trim() && <span className="absolute right-4 top-1/2 -translate-y-1/2 text-red-500 font-bold">*</span>}
@@ -423,7 +446,25 @@ export default function CartDrawer() {
                       </div>
 
                       {/* Right Side: Summary and Actions */}
-                      <div className="w-full md:w-[360px] p-6 md:p-8 bg-gray-50/50 flex flex-col justify-center">
+                      <div className="w-full md:w-[360px] p-6 md:p-8 bg-gray-50/50 flex flex-col justify-center relative overflow-hidden">
+                        {(isSubmitting || isUploading) && (
+                          <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="absolute inset-0 z-50 bg-white/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center"
+                          >
+                            <motion.div 
+                              animate={{ rotate: 360 }} 
+                              transition={{ repeat: Infinity, duration: 1, ease: 'linear' }} 
+                              className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full mb-4" 
+                            />
+                            <p className="text-sm font-black uppercase tracking-widest text-gray-900 animate-pulse">
+                              {isUploading 
+                                ? (language === 'ru' ? 'Пожалуйста, подождите, идет загрузка чека...' : 'Iltimos, kuting, chek yuklanmoqda...') 
+                                : (language === 'ru' ? 'Оформление заказа...' : "Buyurtma rasmiylashtirilmoqda...")}
+                            </p>
+                          </motion.div>
+                        )}
                         <div className="mb-8 md:mb-12">
                           <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em] block mb-3">{language === 'ru' ? 'К оплате' : 'To\'lov uchun'}</span>
                           <div className="text-3xl md:text-5xl font-black text-primary tracking-tighter">
