@@ -4,7 +4,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { Package, Clock, CheckCircle, Truck, XCircle, ChevronLeft, CreditCard, MapPin, Link2, ShoppingCart, Camera, Save, Edit3, LogOut, Info, ChevronUp, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { db } from '../firebase';
+import { db, auth } from '../firebase';
 import { useSiteSettings } from '../context/SiteSettingsContext';
 
 import { updateProfile } from 'firebase/auth';

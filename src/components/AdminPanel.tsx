@@ -601,15 +601,53 @@ export default function AdminPanel() {
 
       {activeTab === 'settings' && (
         <div className="p-8 bg-white rounded-2xl border border-gray-100 shadow-sm space-y-12">
-           <div className="border-b border-gray-100 pb-4">
-             <h3 className="text-xl font-black uppercase">Настройки сайта</h3>
-             <p className="text-gray-500 text-sm">Управление внешним видом и доступом</p>
-           </div>
+            <div className="border-b border-gray-100 pb-4">
+              <h3 className="text-xl font-black uppercase">Настройки сайта</h3>
+              <p className="text-gray-500 text-sm">Управление внешним видом и доступом</p>
+            </div>
 
-                   
-                   <div className="space-y-6">
-                      <div>
-                        <label className="block text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Главный баннер</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+               <div className="space-y-4">
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-2 ml-2">Название сайта</label>
+                    <input 
+                      type="text" 
+                      value={siteName}
+                      onChange={e => setSiteName(e.target.value)}
+                      className="w-full px-5 py-4 bg-gray-50 rounded-2xl border border-gray-100 font-bold text-sm focus:bg-white focus:border-primary transition-all outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-2 ml-2">Основной цвет (HEX)</label>
+                    <div className="flex gap-2">
+                       <input 
+                         type="text" 
+                         value={primaryColor}
+                         onChange={e => setPrimaryColor(e.target.value)}
+                         className="flex-1 px-5 py-4 bg-gray-50 rounded-2xl border border-gray-100 font-black text-sm uppercase"
+                       />
+                       <div className="w-14 h-14 rounded-2xl border-4 border-white shadow-lg" style={{ backgroundColor: primaryColor }} />
+                    </div>
+                  </div>
+               </div>
+
+               <div className="space-y-4">
+                  <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-2 ml-2">Логотип сайта</label>
+                  <div className="flex items-center gap-6 p-6 bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200 group hover:border-primary transition-colors">
+                     <div className="w-20 h-20 bg-white rounded-2xl shadow-xl p-2 flex items-center justify-center">
+                        <img src={siteSettings.logoUrl} className="w-full h-full object-contain" />
+                     </div>
+                     <label className="cursor-pointer">
+                        <div className="px-4 py-2 bg-primary text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:shadow-primary/30 transition-all">Загрузить лого</div>
+                        <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && handleSiteImageUpload('logoUrl', e.target.files[0])} />
+                     </label>
+                  </div>
+               </div>
+            </div>
+
+            <div className="space-y-6">
+               <div>
+                 <label className="block text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Главный баннер</label>
                         <div className="relative aspect-video bg-white rounded-xl border border-gray-200 overflow-hidden group">
                            <img src={siteSettings.bannerUrl} className="w-full h-full object-cover" />
                            <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
@@ -1771,8 +1809,8 @@ export default function AdminPanel() {
               className="relative bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden border border-gray-100"
             >
               <div className="p-8">
-                 <div className={`w-16 h-16 ${confirmData.title.includes('Импорт') || confirmData.title.includes('Добавление') ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'} rounded-2xl flex items-center justify-center mb-6 mx-auto`}>
-                    {confirmData.title.includes('Импорт') || confirmData.title.includes('Добавление') ? <CheckCircle className="w-8 h-8" /> : <Trash2 className="w-8 h-8" />}
+                 <div className={`w-16 h-16 ${confirmData.title.toUpperCase().includes('ИМПОРТ') || confirmData.title.toUpperCase().includes('ДОБАВЛЕНИЕ') ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'} rounded-2xl flex items-center justify-center mb-6 mx-auto`}>
+                    {confirmData.title.toUpperCase().includes('ИМПОРТ') || confirmData.title.toUpperCase().includes('ДОБАВЛЕНИЕ') ? <CheckCircle className="w-8 h-8" /> : <Trash2 className="w-8 h-8" />}
                  </div>
                  <h3 className="text-2xl font-black text-gray-900 text-center mb-2 uppercase tracking-tight">{confirmData.title}</h3>
                  <p className="text-gray-500 text-center font-bold mb-8">{confirmData.message}</p>
@@ -1789,9 +1827,9 @@ export default function AdminPanel() {
                         confirmData.onConfirm();
                         setIsConfirmOpen(false);
                       }}
-                      className={`py-4 ${confirmData.title.includes('Импорт') || confirmData.title.includes('Добавление') ? 'bg-green-600 shadow-green-200 hover:bg-green-700' : 'bg-red-600 shadow-red-200 hover:bg-red-700'} text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg transition-all hover:-translate-y-0.5 active:translate-y-0`}
+                      className={`py-4 ${confirmData.title.toUpperCase().includes('ИМПОРТ') || confirmData.title.toUpperCase().includes('ДОБАВЛЕНИЕ') ? 'bg-green-600 shadow-green-200 hover:bg-green-700' : 'bg-red-600 shadow-red-200 hover:bg-red-700'} text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg transition-all hover:-translate-y-0.5 active:translate-y-0`}
                     >
-                      {confirmData.title.includes('Импорт') || confirmData.title.includes('Добавление') ? 'Да, добавить' : 'Да, удалить'}
+                      {confirmData.title.toUpperCase().includes('ИМПОРТ') || confirmData.title.toUpperCase().includes('ДОБАВЛЕНИЕ') ? 'Да, добавить' : 'Да, удалить'}
                     </button>
                  </div>
               </div>

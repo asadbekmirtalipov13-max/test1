@@ -13,7 +13,8 @@ import { AuthProvider } from './context/AuthContext';
 import { SiteSettingsProvider, useSiteSettings } from './context/SiteSettingsContext';
 import { useAuth } from './context/AuthContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import Fuse from 'fuse.js';
 import { db } from './firebase';
 import { doc, getDocFromServer, deleteDoc } from 'firebase/firestore';
 
@@ -100,6 +101,33 @@ function AppContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
 
+  const filteredProducts = useMemo(() => {
+    let result = products;
+    
+    if (searchQuery.trim()) {
+      const fuse = new Fuse(products, {
+        keys: [
+          { name: 'name.ru', weight: 1.0 },
+          { name: 'name.uz', weight: 1.0 },
+          { name: 'description.ru', weight: 0.5 },
+          { name: 'description.uz', weight: 0.5 },
+          { name: 'tags', weight: 0.8 },
+          { name: 'code', weight: 0.8 }
+        ],
+        threshold: 0.4,
+        distance: 100,
+        ignoreLocation: true
+      });
+      result = fuse.search(searchQuery).map(r => r.item);
+    }
+
+    if (selectedCategoryId) {
+      result = result.filter(p => p.categoryId === selectedCategoryId);
+    }
+    
+    return result;
+  }, [products, searchQuery, selectedCategoryId]);
+
   const initialLoading = storeLoading || settingsLoading;
 
   useEffect(() => {
@@ -184,19 +212,6 @@ function AppContent() {
       </div>
     );
   }
-
-  const filteredProducts = products.filter(p => {
-    const searchLow = searchQuery.toLowerCase();
-    const matchesSearch = (
-      p?.name?.[language]?.toLowerCase().includes(searchLow) || 
-      p?.description?.[language]?.toLowerCase().includes(searchLow) ||
-      (p?.tags && p.tags.some(tag => tag.toLowerCase().includes(searchLow)))
-    );
-    if (selectedCategoryId) {
-      return matchesSearch && p.categoryId === selectedCategoryId;
-    }
-    return matchesSearch;
-  });
 
   const selectedCategory = categories.find(c => c.id === selectedCategoryId);
 

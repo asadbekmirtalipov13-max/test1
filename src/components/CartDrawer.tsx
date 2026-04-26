@@ -1,4 +1,4 @@
-import { ShoppingCart, X, Trash2, CreditCard, Tag, Clock, CheckCircle, Copy, Upload, Check, Loader2 } from 'lucide-react';
+import { ShoppingCart, X, Trash2, CreditCard, Tag, Clock, CheckCircle, Copy, Upload, Check, Loader2, MapPin } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useStoreData } from '../hooks/useStoreData';
