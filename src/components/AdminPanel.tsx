@@ -1447,9 +1447,9 @@ export default function AdminPanel() {
                       reader.onerror = reject;
                     });
 
-                    const apiKey = process.env.GEMINI_API_KEY;
+                    const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || (process as any).env?.GEMINI_API_KEY || '';
                     if (!apiKey) {
-                      throw new Error('Модуль распознавания не настроен. Пожалуйста, добавьте GEMINI_API_KEY в настройках проекта.');
+                      throw new Error('Модуль распознавания не настроен. Пожалуйста, добавьте GEMINI_API_KEY в настройках проекта (Секреты) или в .env файл.');
                     }
                      const ai = new GoogleGenAI({ apiKey });
                      const response = await ai.models.generateContent({
@@ -1519,16 +1519,26 @@ export default function AdminPanel() {
                                   const categoryScores = categories.map(c => {
                                      const ruName = (c.name?.ru || '').toLowerCase();
                                      const uzName = (c.name?.uz || '').toLowerCase();
-                                     const getBases = (name: string) => name.split(/\s+/).map(w => w.replace(/[.,!?:;]/g, '').trim()).filter(w => w.length > 2).map(w => w.replace(/(и|ы|ая|ой|ые|ие|а|я|о|е|ar|lar)$/i, ''));
+                                     
+                                     // Улучшенное получение основ слов: убираем окончания
+                                     const getBases = (name: string) => name.split(/\s+/).map(w => w.replace(/[.,!?:;]/g, '').trim()).filter(w => w.length > 2).map(w => w.replace(/(и|ы|ая|ой|ые|ие|а|я|о|е|ar|lar|ий|ый|ое|ее)$/i, ''));
+                                     const pBases = getBases(productNameLower);
                                      const ruBases = getBases(ruName);
                                      const uzBases = getBases(uzName);
                                      
                                      let score = 0;
+                                     // Совпадение основ слов категорий в названии товара
                                      ruBases.forEach(b => { if (productNameLower.includes(b)) score += 10; });
                                      uzBases.forEach(b => { if (productNameLower.includes(b)) score += 10; });
+                                     
+                                     // Совпадение основ слов товара в названии категории
+                                     pBases.forEach(pb => { if (ruName.includes(pb) || uzName.includes(pb)) score += 10; });
 
-                                     const keywords = ['плитка', 'индикатор', 'табличка', 'кнопка', 'пандус', 'подъемник', 'замок', 'держатель'];
-                                     keywords.forEach(word => { if (productNameLower.includes(word) && (ruName.includes(word) || uzName.includes(word))) score += 15; });
+                                     // Специальные ключевые слова (основы)
+                                     const keywords = ['плитк', 'индикатор', 'табличк', 'кнопк', 'пандус', 'подъемник', 'замок', 'держател', 'табло', 'мнемосхем', 'звуковой'];
+                                     keywords.forEach(word => { 
+                                       if (productNameLower.includes(word) && (ruName.includes(word) || uzName.includes(word))) score += 20; 
+                                     });
 
                                      return { id: c.id, score };
                                   });
