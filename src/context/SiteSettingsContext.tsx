@@ -61,6 +61,13 @@ interface SiteSettings {
   
   heroSlides: HeroSlide[];
   heroAutoplayDelay: number;
+
+  siteDescription?: { ru: string; uz: string };
+  aboutUs?: { ru: string; uz: string };
+  adBlockTitle?: string;
+  adBlockLink?: string;
+  showAdBlock?: boolean;
+  adBlockImage?: string;
   
   loading?: boolean;
 }
@@ -71,6 +78,19 @@ const defaultSettings: SiteSettings = {
   bannerUrl: 'https://i.ibb.co/h14w00g/64250047-1-1366x210-rev004.jpg',
   footerImageUrl: 'https://i.ibb.co/h14w00g/64250047-1-1366x210-rev004.jpg',
   
+  siteDescription: {
+    ru: 'Производство пандусов и металлоконструкций',
+    uz: 'Panduslar va metall konstruksiyalar ishlab chiqarish'
+  },
+  aboutUs: {
+    ru: '',
+    uz: ''
+  },
+  adBlockTitle: '',
+  adBlockLink: '',
+  showAdBlock: false,
+  adBlockImage: '',
+
   heroSlides: [
     {
       id: 'default-1',

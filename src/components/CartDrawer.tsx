@@ -1,4 +1,4 @@
-import { ShoppingCart, X, Trash2, CreditCard, Tag, Clock, CheckCircle } from 'lucide-react';
+import { ShoppingCart, X, Trash2, CreditCard, Tag, Clock, CheckCircle, Copy, Upload, Check, Loader2 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useStoreData } from '../hooks/useStoreData';
@@ -144,31 +144,33 @@ export default function CartDrawer() {
     const generatedCode = `${codePart1}-${codePart2}`;
 
     try {
-      await addDoc(collection(db, 'orders'), {
+      const orderData = {
         userId: user!.uid,
-        userEmail: user!.email,
+        userEmail: user!.email || '',
         userName: user!.displayName || 'Unknown',
-        userPhone: phone,
-        userContact: contactInfo,
+        userPhone: phone || '',
+        userContact: contactInfo || '',
         code: generatedCode,
         items: cartItems.map(i => ({ 
-          id: i.id, 
-          quantity: i.quantity, 
-          name: i.product?.name, 
-          price: i.product?.price,
-          image: i.product?.image,
-          code: i.product?.code
+          id: i.id || '', 
+          quantity: i.quantity || 1, 
+          name: i.product?.name || { ru: 'Без названия', uz: 'Nomsiz' }, 
+          price: i.product?.price || 0,
+          image: i.product?.image || '',
+          code: i.product?.code || ''
         })),
-        subtotal,
-        discount,
-        total,
+        subtotal: subtotal || 0,
+        discount: discount || 0,
+        total: total || 0,
         status: isPayLater ? 'need_to_pay' : 'pending',
         createdAt: new Date().toISOString(),
         siteComment: '',
         readinessTime: null,
-        paymentMethod: isPayLater ? 'pay_later' : (selectedPaymentMethod as PaymentMethod)?.name,
-        paymentScreenshot: screenshotUrl
-      });
+        paymentMethod: isPayLater ? 'pay_later' : (selectedPaymentMethod as PaymentMethod)?.name || 'Unknown',
+        paymentScreenshot: screenshotUrl || ''
+      };
+
+      await addDoc(collection(db, 'orders'), orderData);
 
       if (discount > 0 && promocodeInput) {
         const q = query(collection(db, 'promocodes'), where('code', '==', promocodeInput));
@@ -397,49 +399,72 @@ export default function CartDrawer() {
                             {selectedPaymentMethod.name}
                           </h3>
 
-                          <div className="space-y-4 mb-8">
-                            <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
-                              {language === 'ru' ? 'Ваши контакты' : 'Sizning kontaktlaringiz'}
-                              {(!phone.trim() || !contactInfo.trim()) && <span className="ml-2 text-red-500 font-black">! {language === 'ru' ? 'НУЖНО ЗАПОЛНИТЬ' : 'TO\'LDIRISH KERAK'}</span>}
-                            </label>
-                            <div className="relative">
-                              <input 
-                                type="tel" 
-                                placeholder={language === 'ru' ? 'Номер телефона (обязательно)' : 'Telefon raqami (majburiy)'}
-                                value={phone}
-                                onChange={(e) => handleContactChange('phone', e.target.value)}
-                                className={`w-full px-5 py-4 rounded-xl border transition-all outline-none font-bold text-sm shadow-sm ${!phone.trim() || phone === '+998' ? 'border-red-500 bg-red-50 focus:ring-red-200' : 'border-gray-200 bg-gray-50 focus:ring-primary focus:bg-white'}`}
-                              />
-                              {(!phone.trim() || phone === '+998') && <span className="absolute right-4 top-1/2 -translate-y-1/2 text-red-500 font-bold">*</span>}
-                            </div>
-                            <div className="relative">
-                              <input 
-                                type="text" 
-                                placeholder={language === 'ru' ? 'Telegram / Instagram (обязательно)' : 'Telegram / Instagram (majburiy)'}
-                                value={contactInfo}
-                                onChange={(e) => handleContactChange('contact', e.target.value)}
-                                className={`w-full px-5 py-4 rounded-xl border transition-all outline-none font-bold text-sm shadow-sm ${!contactInfo.trim() ? 'border-red-500 bg-red-50 focus:ring-red-200' : 'border-gray-200 bg-gray-50 focus:ring-primary focus:bg-white'}`}
-                              />
-                              {!contactInfo.trim() && <span className="absolute right-4 top-1/2 -translate-y-1/2 text-red-500 font-bold">*</span>}
-                            </div>
-                          </div>
+                          {paymentStep === 1 ? (
+                            <div className="space-y-4 mb-8">
+                              <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">
+                                {language === 'ru' ? 'Ваши контакты' : 'Sizning kontaktlaringiz'}
+                                {(!phone.trim() || !contactInfo.trim()) && <span className="ml-2 text-red-500 font-black">! {language === 'ru' ? 'НУЖНО ЗАПОЛНИТЬ' : 'TO\'LDIRISH KERAK'}</span>}
+                              </label>
+                              <div className="relative">
+                                <input 
+                                  type="tel" 
+                                  placeholder={language === 'ru' ? 'Номер телефона (обязательно)' : 'Telefon raqami (majburiy)'}
+                                  value={phone}
+                                  onChange={(e) => handleContactChange('phone', e.target.value)}
+                                  className={`w-full px-5 py-4 rounded-xl border transition-all outline-none font-bold text-sm shadow-sm ${!phone.trim() || phone === '+998' ? 'border-red-500 bg-red-50 focus:ring-red-200' : 'border-gray-200 bg-gray-50 focus:ring-primary focus:bg-white'}`}
+                                />
+                                {(!phone.trim() || phone === '+998') && <span className="absolute right-4 top-1/2 -translate-y-1/2 text-red-500 font-bold">*</span>}
+                              </div>
+                              <div className="relative">
+                                <input 
+                                  type="text" 
+                                  placeholder={language === 'ru' ? 'Ваша социальная сеть или почта' : 'Sizning ijtimoiy tarmoqingiz yoki pochtangiz'}
+                                  value={contactInfo}
+                                  onChange={(e) => handleContactChange('contact', e.target.value)}
+                                  className={`w-full px-5 py-4 rounded-xl border transition-all outline-none font-bold text-sm shadow-sm ${!contactInfo.trim() ? 'border-red-500 bg-red-50 focus:ring-red-200' : 'border-gray-200 bg-gray-50 focus:ring-primary focus:bg-white'}`}
+                                />
+                                {!contactInfo.trim() && <span className="absolute right-4 top-1/2 -translate-y-1/2 text-red-500 font-bold">*</span>}
+                              </div>
 
-                          <div className="bg-gray-50 border border-gray-100 p-6 rounded-3xl">
-                            <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-2 opacity-50">{language === 'ru' ? 'Инструкция по оплате' : 'To\'lov bo\'yicha ko\'rsatma'}</p>
-                            <p className="text-sm md:text-base text-gray-600 whitespace-pre-wrap leading-relaxed">
-                              {selectedPaymentMethod.description?.[language]}
-                            </p>
-                          </div>
-
-                          {selectedPaymentMethod.screenshotRequired && (
-                            <div className="mt-8 p-6 bg-red-50 border-2 border-dashed border-red-200 rounded-3xl">
-                              <label className="block text-[10px] font-black uppercase tracking-widest text-red-500 mb-3">{language === 'ru' ? 'Загрузите скриншот чека' : 'To\'lov cheki skrinshotini yuklang'}</label>
-                              <input 
-                                type="file" 
-                                accept="image/*"
-                                onChange={(e) => setScreenshotFile(e.target.files?.[0] || null)}
-                                className="w-full text-xs font-bold text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-black file:bg-red-500 file:text-white hover:file:bg-red-600"
-                              />
+                              <div className="bg-gray-50 border border-gray-100 p-6 rounded-3xl mt-4">
+                                <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-2 opacity-50">{language === 'ru' ? 'Инструкция по оплате' : 'To\'lov bo\'yicha ko\'rsatma'}</p>
+                                <p className="text-sm md:text-base text-gray-600 whitespace-pre-wrap leading-relaxed">
+                                  {selectedPaymentMethod.description?.[language]}
+                                </p>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="space-y-4 mb-8">
+                               <div className="bg-blue-50 border-2 border-primary/20 p-6 rounded-3xl mb-4">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <div className="w-8 h-8 bg-primary text-white rounded-lg flex items-center justify-center font-black">!</div>
+                                  <p className="font-black text-gray-900 leading-tight">{language === 'ru' ? 'Загрузите скриншот чека' : 'Chek skrinshotini yuklang'}</p>
+                                </div>
+                                <p className="text-sm font-medium text-gray-600">
+                                  {language === 'ru' ? 'После того как вы произвели оплату, прикрепите здесь скриншот чека для подтверждения.' : 'To\'lovni amalga oshirgandan so\'ng, tasdiqlash uchun chek skrinshotini shu yerga biriktiring.'}
+                                </p>
+                              </div>
+                              
+                              <div className="p-8 border-4 border-dashed border-primary/20 rounded-3xl flex flex-col items-center justify-center text-center space-y-4 bg-gray-50/50 hover:bg-gray-100/50 transition-colors relative cursor-pointer group">
+                                <div className="w-16 h-16 bg-white rounded-full shadow-md flex items-center justify-center group-hover:scale-110 transition-transform">
+                                  <Upload className="w-8 h-8 text-primary" />
+                                </div>
+                                <div className="space-y-1">
+                                  <p className="font-black text-gray-900">{screenshotFile ? screenshotFile.name : (language === 'ru' ? 'Нажмите для загрузки' : 'Yuklash uchun bosing')}</p>
+                                  <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">PNG, JPG до 5MB</p>
+                                </div>
+                                <input 
+                                  type="file" 
+                                  accept="image/*"
+                                  onChange={(e) => setScreenshotFile(e.target.files?.[0] || null)}
+                                  className="absolute inset-0 opacity-0 cursor-pointer"
+                                />
+                                {screenshotFile && (
+                                  <div className="bg-green-500 text-white p-2 rounded-full absolute -top-3 -right-3 shadow-lg">
+                                    <Check className="w-4 h-4" />
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           )}
                         </div>

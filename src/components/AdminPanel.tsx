@@ -119,6 +119,7 @@ export default function AdminPanel() {
   const [adBlockLink, setAdBlockLink] = useState(siteSettings.adBlockLink || '');
   const [showAdBlock, setShowAdBlock] = useState(siteSettings.showAdBlock || false);
   const [adBlockImage, setAdBlockImage] = useState(siteSettings.adBlockImage || '');
+  const [siteDescription, setSiteDescription] = useState(siteSettings.siteDescription || { ru: '', uz: '' });
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -163,6 +164,7 @@ export default function AdminPanel() {
     setAdBlockLink(siteSettings.adBlockLink || '');
     setShowAdBlock(siteSettings.showAdBlock || false);
     setAdBlockImage(siteSettings.adBlockImage || '');
+    setSiteDescription(siteSettings.siteDescription || { ru: '', uz: '' });
   }, [siteSettings]);
 
   const handleDeleteOrder = async (orderId: string) => {
@@ -436,7 +438,8 @@ export default function AdminPanel() {
         adBlockTitle,
         adBlockLink,
         showAdBlock,
-        adBlockImage
+        adBlockImage,
+        siteDescription
       }, { merge: true });
       alert('Настройки успешно сохранены!');
     } catch (error) {
@@ -543,7 +546,7 @@ export default function AdminPanel() {
         </div>
         
         <div className="flex items-center gap-4 bg-white p-3 rounded-2xl shadow-sm border border-gray-100">
-          {user.photoURL ? (
+          {user.photoURL && user.photoURL !== "" ? (
             <img src={user.photoURL} alt="" className="w-10 h-10 rounded-xl" />
           ) : (
             <div className="w-10 h-10 bg-blue-100 text-primary rounded-xl flex items-center justify-center font-bold">
@@ -575,12 +578,6 @@ export default function AdminPanel() {
             className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'categories' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
           >
             {language === 'ru' ? 'Категории' : 'Kategoriyalar'}
-          </button>
-          <button 
-            onClick={() => setActiveTab('ai-import')}
-            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'ai-import' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
-          >
-            ✨ AI
           </button>
           <button 
             onClick={() => setActiveTab('promocodes')}
@@ -823,7 +820,7 @@ export default function AdminPanel() {
                           <div className="flex justify-between items-start">
                              <div className="flex items-center gap-4 flex-1">
                                 <div className="w-16 h-16 bg-gray-50 border border-gray-100 rounded-xl relative group overflow-hidden shrink-0 flex items-center justify-center">
-                                   {pm.image ? <img src={pm.image} className="w-full h-full object-contain" /> : <CreditCard className="w-6 h-6 text-gray-200" />}
+                                   {pm.image ? <img src={pm.image || undefined} className="w-full h-full object-contain" /> : <CreditCard className="w-6 h-6 text-gray-200" />}
                                    <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
                                       <Upload className="w-4 h-4 text-white" />
                                       <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
@@ -988,7 +985,7 @@ export default function AdminPanel() {
                                 <div key={u.id} className="py-4 flex justify-between items-center group">
                                    <div className="flex items-center gap-3">
                                       <div className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center border border-gray-100 overflow-hidden">
-                                         {u.photoURL ? <img src={u.photoURL} className="w-full h-full object-cover" /> : <div className="text-gray-300 font-black">{u.displayName?.[0] || u.email?.[0]?.toUpperCase()}</div>}
+                                         {u.photoURL ? <img src={u.photoURL || undefined} className="w-full h-full object-cover" /> : <div className="text-gray-300 font-black">{u.displayName?.[0] || u.email?.[0]?.toUpperCase()}</div>}
                                       </div>
                                       <div>
                                          <p className="text-xs font-black text-gray-900">{u.displayName || 'Без имени'}</p>
@@ -1006,6 +1003,46 @@ export default function AdminPanel() {
                     </div>
                   )}
               </section>
+
+              <section className="bg-gray-50/50 p-6 rounded-3xl border border-gray-100">
+                  <div className="flex items-center gap-3 mb-8">
+                     <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600">
+                        <FileText className="w-6 h-6" />
+                     </div>
+                     <h3 className="text-xl font-black text-gray-900 uppercase">Описание в футере</h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+                     <div>
+                        <label className="block text-[10px] font-black uppercase text-gray-400 mb-2 ml-2">Текст (RU)</label>
+                        <textarea 
+                           className="w-full px-4 py-3 bg-white rounded-xl border border-gray-100 font-bold text-xs h-24"
+                           value={siteDescription.ru}
+                           onChange={e => setSiteDescription({...siteDescription, ru: e.target.value})}
+                           placeholder="Например: Производство пандусов..."
+                        />
+                     </div>
+                     <div>
+                        <label className="block text-[10px] font-black uppercase text-gray-400 mb-2 ml-2">Текст (UZ)</label>
+                        <textarea 
+                           className="w-full px-4 py-3 bg-white rounded-xl border border-gray-100 font-bold text-xs h-24"
+                           value={siteDescription.uz}
+                           onChange={e => setSiteDescription({...siteDescription, uz: e.target.value})}
+                           placeholder="Masalan: Panduslar ishlab chiqarish..."
+                        />
+                     </div>
+                  </div>
+              </section>
+
+              <div className="pt-8 border-t border-gray-100 flex justify-end">
+                <button 
+                  onClick={handleSaveCustomization}
+                  disabled={customizationSaving}
+                  className="px-12 py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-widest shadow-xl hover:shadow-2xl transition-all disabled:opacity-50 flex items-center gap-3"
+                >
+                  {customizationSaving ? <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }} className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full" /> : <Save className="w-5 h-5" />}
+                  {customizationSaving ? 'Сохранение...' : 'Сохранить все настройки'}
+                </button>
+              </div>
         </div>
       )}
 
@@ -1132,7 +1169,7 @@ export default function AdminPanel() {
                 <div key={cat.id} className="group bg-gray-50/50 p-4 rounded-2xl border border-gray-100 flex items-center justify-between hover:bg-white hover:shadow-lg transition-all">
                   <div className="flex items-center gap-4">
                     <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-gray-200">
-                       <img src={cat.image} className="w-full h-full object-cover" />
+                       <img src={cat.image || undefined} className="w-full h-full object-cover" />
                        <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
                           <Upload className="w-4 h-4 text-white" />
                           <input type="file" className="hidden" onChange={(e) => e.target.files?.[0] && handleEntityImageUpload('categories', cat.id, e.target.files[0])} />
@@ -1180,12 +1217,20 @@ export default function AdminPanel() {
                 </button>
               )}
             </div>
-            <button 
-              onClick={() => setActiveTab('ai-import')}
-              className="px-6 py-3 bg-purple-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-purple-700 transition-all flex items-center gap-2"
-            >
-              ✨ AI Импорт
-            </button>
+            <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto no-scrollbar">
+              <button 
+                onClick={() => setActiveTab('ai-import')}
+                className="px-4 py-3 bg-purple-50 text-purple-600 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-purple-600 hover:text-white transition-all flex items-center gap-2 whitespace-nowrap"
+              >
+                <Globe className="w-4 h-4" /> AI Импорт
+              </button>
+              <button 
+                onClick={() => setEditingProduct({ name: { ru: '', uz: '' }, description: { ru: '', uz: '' }, price: 0, image: '', categoryId: categories[0]?.id || '', code: '' })} 
+                className="px-4 py-3 bg-primary text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-blue-700 transition-all flex items-center gap-2 whitespace-nowrap"
+              >
+                <Plus className="w-4 h-4" /> {language === 'ru' ? 'Новый товар' : 'Yangi mahsulot'}
+              </button>
+            </div>
           </div>
 
           <div className="space-y-4">

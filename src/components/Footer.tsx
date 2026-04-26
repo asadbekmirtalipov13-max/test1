@@ -5,7 +5,7 @@ import { motion } from 'motion/react';
 
 export default function Footer() {
   const { t, language } = useLanguage();
-  const { contacts, siteName, bannerUrl, footerImageUrl, paymentMethodsList, socialLinks } = useSiteSettings();
+  const { contacts, siteName, bannerUrl, footerImageUrl, paymentMethodsList, socialLinks, siteDescription } = useSiteSettings();
 
   return (
     <div className="flex flex-col">
@@ -22,7 +22,7 @@ export default function Footer() {
             <div>
               <h3 className="text-2xl font-black text-primary mb-6 uppercase tracking-tight">{siteName}</h3>
               <p className="text-gray-500 mb-8 leading-relaxed">
-                {t('hero.title')}
+                {siteDescription?.[language] || siteDescription?.ru}
               </p>
               <div className="flex flex-wrap gap-4">
                 {socialLinks?.map((link) => (

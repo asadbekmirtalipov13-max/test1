@@ -20,10 +20,10 @@ import { doc, getDocFromServer, deleteDoc } from 'firebase/firestore';
 import { Eye, Loader2, Search } from 'lucide-react';
 
 function LanguageModal({ onComplete }: { onComplete: () => void }) {
-  const { setLanguage } = useLanguage();
+  const { setLanguage, language } = useLanguage();
   const { isLargeText, setIsLargeText } = useTheme();
   
-  const [selectedLang, setSelectedLang] = useState<'ru'|'uz'>('ru');
+  const [selectedLang, setSelectedLang] = useState<'ru'|'uz'>(language || 'ru');
   const [impaired, setImpaired] = useState(isLargeText);
 
   const handleSubmit = () => {
@@ -36,38 +36,53 @@ function LanguageModal({ onComplete }: { onComplete: () => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-      <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl">
-        <h2 className="text-2xl font-black mb-6 text-center text-gray-900">Выберите язык / Tilni tanlang</h2>
-        
-        <div className="space-y-3 mb-6">
-          <label className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-colors ${selectedLang === 'ru' ? 'border-primary bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}>
-            <input type="radio" className="w-5 h-5 text-primary" name="lang" checked={selectedLang === 'ru'} onChange={() => setSelectedLang('ru')} />
-            <span className="font-bold text-lg text-gray-900">Русский</span>
-          </label>
-          <label className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-colors ${selectedLang === 'uz' ? 'border-primary bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}>
-            <input type="radio" className="w-5 h-5 text-primary" name="lang" checked={selectedLang === 'uz'} onChange={() => setSelectedLang('uz')} />
-            <span className="font-bold text-lg text-gray-900">O'zbekcha</span>
-          </label>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 overflow-hidden">
+      <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-4 opacity-10">
+          <Eye className="w-20 h-20" />
         </div>
         
-        <div className="h-px bg-gray-200 w-full mb-6"></div>
+        <h2 className="text-2xl font-black mb-6 text-gray-900 leading-tight">Выберите язык <br/><span className="text-primary">Tilni tanlang</span></h2>
         
-        <label className="flex items-center gap-3 mb-8 cursor-pointer select-none">
-          <div className="relative flex items-center">
-            <input type="checkbox" className="sr-only peer" checked={impaired} onChange={(e) => setImpaired(e.target.checked)} />
-            <div className="w-6 h-6 border-2 border-gray-300 rounded bg-gray-50 peer-checked:bg-yellow-400 peer-checked:border-yellow-400 transition-colors flex items-center justify-center">
-              {impaired && <Eye className="w-4 h-4 text-yellow-900" />}
+        <div className="space-y-3 mb-8">
+          <button 
+            onClick={() => setSelectedLang('ru')}
+            className={`flex items-center justify-between w-full p-4 rounded-2xl border-2 transition-all ${selectedLang === 'ru' ? 'border-primary bg-blue-50 shadow-md' : 'border-gray-100 hover:bg-gray-50'}`}
+          >
+            <span className={`font-black text-lg ${selectedLang === 'ru' ? 'text-primary' : 'text-gray-400'}`}>РУССКИЙ</span>
+            {selectedLang === 'ru' && <div className="w-3 h-3 bg-primary rounded-full" />}
+          </button>
+          <button 
+            onClick={() => setSelectedLang('uz')}
+            className={`flex items-center justify-between w-full p-4 rounded-2xl border-2 transition-all ${selectedLang === 'uz' ? 'border-primary bg-blue-50 shadow-md' : 'border-gray-100 hover:bg-gray-50'}`}
+          >
+            <span className={`font-black text-lg ${selectedLang === 'uz' ? 'text-primary' : 'text-gray-400'}`}>O'ZBEKCHA</span>
+            {selectedLang === 'uz' && <div className="w-3 h-3 bg-primary rounded-full" />}
+          </button>
+        </div>
+        
+        <div className="h-px bg-gray-100 w-full mb-8"></div>
+        
+        <div className="flex items-center justify-between mb-8 cursor-pointer group" onClick={() => setImpaired(!impaired)}>
+          <div className="flex items-center gap-4">
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${impaired ? 'bg-yellow-400 shadow-lg shadow-yellow-100' : 'bg-gray-100'}`}>
+              <Eye className={`w-6 h-6 transition-colors ${impaired ? 'text-yellow-900' : 'text-gray-400'}`} />
+            </div>
+            <div>
+              <p className={`font-black text-xs uppercase tracking-widest leading-none mb-1 transition-colors ${impaired ? 'text-yellow-700' : 'text-gray-400'}`}>Режим</p>
+              <p className={`font-bold transition-colors ${impaired ? 'text-gray-900' : 'text-gray-500'}`}>Для слабовидящих</p>
             </div>
           </div>
-          <span className="font-bold text-gray-700">Режим для слабовидящих</span>
-        </label>
+          <div className={`w-12 h-6 rounded-full relative transition-colors ${impaired ? 'bg-yellow-400' : 'bg-gray-200'}`}>
+             <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform ${impaired ? 'translate-x-6' : ''}`} />
+          </div>
+        </div>
         
         <button 
           onClick={handleSubmit}
-          className="w-full py-4 bg-primary text-white rounded-xl font-bold text-lg shadow-lg hover:bg-blue-700 transition-colors"
+          className="w-full py-5 bg-primary text-white rounded-2xl font-black text-lg uppercase tracking-widest shadow-xl hover:bg-blue-700 active:scale-95 transition-all"
         >
-          Зайти на сайт / Saytga kirish
+          {selectedLang === 'ru' ? 'Зайти на сайт' : 'Saytga kirish'}
         </button>
       </div>
     </div>
@@ -186,7 +201,7 @@ function AppContent() {
   const selectedCategory = categories.find(c => c.id === selectedCategoryId);
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans text-gray-900 flex flex-col transition-colors duration-200">
+    <div className="min-h-screen bg-gray-50 font-sans text-gray-900 flex flex-col transition-colors duration-200 overflow-x-hidden">
       {showLangModal && <LanguageModal onComplete={() => setShowLangModal(false)} />}
       <Navbar />
       <CartDrawer />

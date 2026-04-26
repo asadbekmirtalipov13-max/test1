@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
@@ -193,11 +193,14 @@ export default function UserCabinet() {
           <div className="flex flex-col md:flex-row items-center gap-8 relative z-10">
             <div className="relative group">
               <div className="w-24 h-24 rounded-3xl overflow-hidden bg-white shadow-xl border-4 border-white/20">
-                <img src={isEditingProfile ? editingAvatar : (user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName}&background=random`)} alt={user.displayName || ''} className="w-full h-full object-cover" />
+                <img src={isEditingProfile ? (editingAvatar || null) : (user.photoURL || `https://ui-avatars.com/api/?name=${user.displayName}&background=random`)} alt={user.displayName || ''} className="w-full h-full object-cover" />
               </div>
               {isEditingProfile && (
-                <label className="absolute inset-0 flex items-center justify-center bg-black/40 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity rounded-3xl">
-                  <Camera className="w-6 h-6 text-white" />
+                <label className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity rounded-3xl text-center p-2 backdrop-blur-[2px]">
+                  <Camera className="w-6 h-6 text-white mb-2" />
+                  <span className="text-[9px] font-black uppercase tracking-widest text-white leading-tight">
+                    {language === 'ru' ? 'Загрузить новый аватар' : 'Yangi avatar yuklash'}
+                  </span>
                   <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
                 </label>
               )}
@@ -570,7 +573,7 @@ export default function UserCabinet() {
                                   <div className="space-y-4 animate-in zoom-in-95">
                                     <div className="p-4 bg-green-50 rounded-2xl border border-green-100 flex flex-col items-center gap-4">
                                        <div className="w-16 h-16 rounded-xl overflow-hidden shadow-lg border-2 border-white">
-                                          <img src={uploadedImageUrl} alt="Check" className="w-full h-full object-cover" />
+                                          <img src={uploadedImageUrl || undefined} alt="Check" className="w-full h-full object-cover" />
                                        </div>
                                        <div className="text-center">
                                           <p className="text-xs font-black text-green-800 uppercase tracking-widest">{language === 'ru' ? 'Чек загружен!' : 'Chek yuklandi!'}</p>
