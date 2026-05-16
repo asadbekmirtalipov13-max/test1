@@ -1,7 +1,10 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: var(--color-primary, #2563eb);
+  --color-primary: #1e3a8a;
+  --color-secondary: #172554;
+  --color-accent: #2563eb;
+  --color-background: #0f172a;
 }
 
 @layer base {
@@ -10,6 +13,8 @@
     width: 100%;
     position: relative;
     -webkit-overflow-scrolling: touch;
+    background-color: var(--color-background);
+    color: #e2e8f0;
   }
   
   html {
@@ -35,10 +40,25 @@
     background: transparent;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #e5e7eb;
+    background: #1e293b;
     border-radius: 10px;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #d1d5db;
+    background: #334155;
+  }
+
+  @keyframes marquee {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
+  .animate-marquee {
+    display: flex;
+    white-space: nowrap;
+    animation: marquee 30s linear infinite;
+  }
+
+  .animate-marquee:hover {
+    animation-play-state: paused;
   }
 }

@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { db, auth } from '../firebase';
-import { collection, query, where, onSnapshot, getDocs, updateDoc, doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, getDocs, updateDoc, doc, setDoc, deleteDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { GoogleGenAI } from '@google/genai';
 import { useStoreData, Category, Product } from '../hooks/useStoreData';
 import { useLanguage } from '../context/LanguageContext';
 import { useSiteSettings, HeroSlide, PaymentMethod } from '../context/SiteSettingsContext';
-import { Upload, Plus, Trash2, Edit, Save, Search, FileText, CheckCircle, Clock, MapPin, PhoneCall, Link2, ShoppingCart, User, Users, Settings, CreditCard, ShieldCheck, Globe, X, ChevronUp, ChevronDown, Share2, Tag, Loader } from 'lucide-react';
+import { Upload, Plus, Trash2, Edit, Save, Search, FileText, CheckCircle, Clock, MapPin, PhoneCall, Link2, ShoppingCart, User, Users, Settings, CreditCard, ShieldCheck, Globe, X, ChevronUp, ChevronDown, Share2, Tag, Loader, MessageSquare, Star, Send, Newspaper, Bell } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 const IMGBB_API_KEY = (import.meta as any).env?.VITE_IMGBB_API_KEY || '99ba8daf990b634a58e3d47eae7cb907';
@@ -53,12 +53,13 @@ export default function AdminPanel() {
   const { user, isAdmin, loading } = useAuth();
   // ... rest of the component
   const { language } = useLanguage();
-  const { categories, products } = useStoreData();
+  const { categories, products, news, partners, branches, updates } = useStoreData();
   const siteSettings = useSiteSettings();
   
-  const [activeTab, setActiveTab] = useState<'orders' | 'categories' | 'products' | 'ai-import' | 'settings' | 'promocodes' | 'admins'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'categories' | 'products' | 'ai-import' | 'settings' | 'promocodes' | 'admins' | 'consultations' | 'users' | 'news' | 'partners' | 'branches' | 'telegram' | 'updates'>('orders');
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
   const [orders, setOrders] = useState<any[]>([]);
+  const [helpRequests, setHelpRequests] = useState<any[]>([]);
   const [promocodesList, setPromocodesList] = useState<any[]>([]);
   const [newPromoCode, setNewPromoCode] = useState('');
   const [newPromoDiscount, setNewPromoDiscount] = useState<number | string>(10);
@@ -99,12 +100,15 @@ export default function AdminPanel() {
   const [aiIsProcessing, setAiIsProcessing] = useState(false);
   const [aiFile, setAiFile] = useState<File | null>(null);
   const [aiCategoryId, setAiCategoryId] = useState('auto');
+  const [aiTags, setAiTags] = useState('');
   const [aiResults, setAiResults] = useState<any[]>([]);
   
   // Bulk selection state
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   const [productSearchQuery, setProductSearchQuery] = useState('');
+  const [consultationSearchQuery, setConsultationSearchQuery] = useState('');
+  const [updateScheduledTime, setUpdateScheduledTime] = useState('');
   const [expandedOrders, setExpandedOrders] = useState<string[]>([]);
   
   // Admins state
@@ -114,6 +118,82 @@ export default function AdminPanel() {
   const [passwordInput, setPasswordInput] = useState('');
   const [newAdminEmail, setNewAdminEmail] = useState('');
   const [adminMessage, setAdminMessage] = useState({ type: '', text: '' });
+
+  // Telegram Settings
+  const [tgToken, setTgToken] = useState('8708002341:AAHaRPYWhCR3Hgj6bUUDF-nmy5EMrMTf-LM');
+  const [tgChatId, setTgChatId] = useState('-1002315682855');
+  const [tgTestLoading, setTgTestLoading] = useState(false);
+  const [tgSaveLoading, setTgSaveLoading] = useState(false);
+  const [tgUpdates, setTgUpdates] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadTgSettings = async () => {
+      try {
+        const snap = await getDoc(doc(db, 'settings', 'telegram'));
+        if (snap.exists()) {
+          const data = snap.data();
+          setTgToken(data.token || '');
+          setTgChatId(data.chatIds || '');
+        }
+      } catch (err) {
+        console.error('Failed to load TG settings:', err);
+      }
+    };
+    loadTgSettings();
+  }, []);
+
+  const saveTgSettings = async () => {
+    setTgSaveLoading(true);
+    try {
+      await setDoc(doc(db, 'settings', 'telegram'), {
+        token: tgToken,
+        chatIds: tgChatId,
+        updatedAt: serverTimestamp()
+      });
+      alert('Telegram settings saved!');
+    } catch (err) {
+      alert('Failed to save settings: ' + err);
+    } finally {
+      setTgSaveLoading(false);
+    }
+  };
+
+  const fetchTgUpdates = async () => {
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${tgToken}/getUpdates`);
+      const data = await res.json();
+      if (data.ok) {
+        setTgUpdates(data.result);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const sendTgTest = async () => {
+    setTgTestLoading(true);
+    try {
+      const res = await fetch('/api/telegram/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          message: '🔔 Тестовое сообщение от Admin Panel! Если вы это видите, интеграция работает.',
+          token: tgToken,
+          chatIds: tgChatId 
+        })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        alert('Test message sent successfully!');
+      } else {
+        alert('Error: ' + JSON.stringify(data));
+      }
+    } catch (err) {
+      alert('Failed: ' + err);
+    } finally {
+      setTgTestLoading(false);
+    }
+  };
 
   // Store management state
   const [uploadingImage, setUploadingImage] = useState<string | null>(null);
@@ -139,29 +219,46 @@ export default function AdminPanel() {
   const [heroSlides, setHeroSlides] = useState<HeroSlide[]>(siteSettings.heroSlides || []);
   const [paymentMethodsList, setPaymentMethodsList] = useState<PaymentMethod[]>(siteSettings.paymentMethodsList || []);
   const [aboutUs, setAboutUs] = useState(siteSettings.aboutUs || { ru: '', uz: '' });
-  const [adBlockTitle, setAdBlockTitle] = useState(siteSettings.adBlockTitle || '');
+  const [adBlockTitle, setAdBlockTitle] = useState(siteSettings.adBlockTitle || { ru: '', uz: '' });
   const [adBlockLink, setAdBlockLink] = useState(siteSettings.adBlockLink || '');
   const [showAdBlock, setShowAdBlock] = useState(siteSettings.showAdBlock || false);
   const [adBlockImage, setAdBlockImage] = useState(siteSettings.adBlockImage || '');
   const [siteDescription, setSiteDescription] = useState(siteSettings.siteDescription || { ru: '', uz: '' });
+  const [aboutImage, setAboutImage] = useState(siteSettings.aboutImage || '');
+  const [aboutStats, setAboutStats] = useState(siteSettings.aboutStats || { years: 10, clients: 500 });
+  const [heroTitle, setHeroTitle] = useState(siteSettings.heroTitle || { ru: 'Мир одинаковый для всех', uz: 'Dunyo hamma uchun bir xil' });
 
   useEffect(() => {
     if (!isAdmin) return;
     const q = query(collection(db, 'users'), where('role', '==', 'admin'));
     const unsubAdmins = onSnapshot(q, (snap) => {
       setAdmins(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (err) => {
+      handleFirestoreError(err, OperationType.GET, 'admins-query');
     });
 
     const unsubAllUsers = onSnapshot(collection(db, 'users'), (snap) => {
       setAllUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (err) => {
+      handleFirestoreError(err, OperationType.GET, 'users');
     });
     
     const unsubOrders = onSnapshot(query(collection(db, 'orders')), (snap) => {
       setOrders(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+    }, (err) => {
+      handleFirestoreError(err, OperationType.GET, 'orders');
     });
     
     const unsubPromocodes = onSnapshot(query(collection(db, 'promocodes')), (snap) => {
       setPromocodesList(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (err) => {
+      handleFirestoreError(err, OperationType.GET, 'promocodes');
+    });
+
+    const unsubHelp = onSnapshot(query(collection(db, 'help_requests')), (snap) => {
+      setHelpRequests(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+    }, (err) => {
+      handleFirestoreError(err, OperationType.GET, 'help_requests');
     });
 
     return () => {
@@ -169,6 +266,7 @@ export default function AdminPanel() {
       unsubAllUsers();
       unsubOrders();
       unsubPromocodes();
+      unsubHelp();
     };
   }, [isAdmin]);
 
@@ -184,21 +282,23 @@ export default function AdminPanel() {
     setPaymentMethodsList(siteSettings.paymentMethodsList || []);
     setSocialLinks(siteSettings.socialLinks || []);
     setAboutUs(siteSettings.aboutUs || { ru: '', uz: '' });
-    setAdBlockTitle(siteSettings.adBlockTitle || '');
+    setAdBlockTitle(siteSettings.adBlockTitle || { ru: '', uz: '' });
     setAdBlockLink(siteSettings.adBlockLink || '');
     setShowAdBlock(siteSettings.showAdBlock || false);
     setAdBlockImage(siteSettings.adBlockImage || '');
     setSiteDescription(siteSettings.siteDescription || { ru: '', uz: '' });
+    setAboutImage(siteSettings.aboutImage || '');
+    setAboutStats(siteSettings.aboutStats || { years: 10, clients: 500 });
+    setHeroTitle(siteSettings.heroTitle || { ru: 'Мир одинаковый для всех', uz: 'Dunyo hamma uchun bir xil' });
   }, [siteSettings]);
 
   const handleDeleteOrder = async (orderId: string) => {
     showConfirm(
       language === 'ru' ? 'Удаление заказа' : 'Buyurtmani o\'chirish',
-      language === 'ru' ? 'Удалить этот заказ навсегда?' : 'Ushbu buyurtmani butunlay o\'chirib tashlash?',
+      language === 'ru' ? 'Вы уверены, что хотите безвозвратно удалить этот заказ?' : 'Haqiqatan ham ushbu buyurtmani butunlay o\'chirib tashlamoqchimisiz?',
       async () => {
         try {
           await deleteDoc(doc(db, 'orders', orderId));
-          alert(language === 'ru' ? 'Заказ удален' : 'Buyurtma o\'chirildi');
         } catch (error: any) {
           handleFirestoreError(error, OperationType.DELETE, `orders/${orderId}`);
         }
@@ -241,7 +341,6 @@ export default function AdminPanel() {
             await deleteDoc(doc(db, 'products', id));
           }
           setSelectedProductIds([]);
-          alert(language === 'ru' ? 'Выбранные товары удалены' : 'Tanlangan mahsulotlar o\'chirildi');
         } catch (error: any) {
           alert('Error: ' + error.message);
         }
@@ -326,15 +425,12 @@ export default function AdminPanel() {
 
   const handleDeleteCategory = async (id: string) => {
     showConfirm(
-      "Удаление категории",
-      "Удалить категорию? Все товары внутри этой категории также будут недоступны.",
+      language === 'ru' ? 'Удаление категории' : 'Kategoriyani o\'chirish',
+      language === 'ru' ? 'Удалить категорию? Все товары внутри этой категории также будут недоступны.' : 'Kategoriyani o\'chirishni xohlaysizmi? Ushbu kategoriya ichidagi barcha mahsulotlar ham mavjud bo\'lmaydi.',
       async () => {
         try {
-          console.log('Deleting category:', id);
           await deleteDoc(doc(db, 'categories', id));
-          alert("Категория успешно удалена");
         } catch (e: any) {
-          console.error('Delete category error:', e);
           handleFirestoreError(e, OperationType.DELETE, `categories/${id}`);
         }
       }
@@ -382,15 +478,12 @@ export default function AdminPanel() {
 
   const handleDeleteProduct = async (id: string) => {
     showConfirm(
-      "Удаление товара",
-      "Вы действительно хотите удалить этот товар?",
+      language === 'ru' ? 'Удаление товара' : 'Mahsulotni o\'chirish',
+      language === 'ru' ? 'Вы действительно хотите удалить этот товар?' : 'Haqiqatan ham ushbu mahsulotni o\'chirib tashlamoqchimisiz?',
       async () => {
         try {
-          console.log('Deleting product:', id);
           await deleteDoc(doc(db, 'products', id));
-          alert("Товар успешно удален");
         } catch (e: any) {
-          console.error('Delete product error:', e);
           handleFirestoreError(e, OperationType.DELETE, `products/${id}`);
         }
       }
@@ -425,7 +518,7 @@ export default function AdminPanel() {
     await setDoc(doc(db, 'products', id), newData);
   }
 
-  const handleSiteImageUpload = async (field: 'logoUrl' | 'bannerUrl' | 'footerImageUrl' | 'ad.imageUrl' | 'adBlockImage', file: File) => {
+  const handleSiteImageUpload = async (field: 'logoUrl' | 'bannerUrl' | 'footerImageUrl' | 'ad.imageUrl' | 'adBlockImage' | 'aboutImage', file: File) => {
     setCustomizationSaving(true);
     try {
       const imageUrl = await uploadImgBB(file);
@@ -433,6 +526,8 @@ export default function AdminPanel() {
         setAdForm(prev => ({ ...prev, imageUrl }));
       } else if (field === 'adBlockImage') {
         setAdBlockImage(imageUrl);
+      } else if (field === 'aboutImage') {
+        setAboutImage(imageUrl);
       } else {
         await setDoc(doc(db, 'settings', 'site'), { [field]: imageUrl }, { merge: true });
       }
@@ -463,7 +558,10 @@ export default function AdminPanel() {
         adBlockLink,
         showAdBlock,
         adBlockImage,
-        siteDescription
+        siteDescription,
+        aboutImage,
+        aboutStats,
+        heroTitle
       }, { merge: true });
       alert('Настройки успешно сохранены!');
     } catch (error) {
@@ -507,6 +605,20 @@ export default function AdminPanel() {
           console.error('Delete admin error:', e);
           alert("Ошибка: " + e.message);
         }
+      }
+    );
+  };
+
+  const handleToggleBan = async (uid: string, isCurrentlyBanned: boolean) => {
+    showConfirm(
+      language === 'ru' ? 'Изменение статуса пользователя' : 'Foydalanuvchi holatini o\'zgartirish',
+      isCurrentlyBanned ? (language === 'ru' ? 'Вы хотите разбанить этого пользователя?' : 'Siz bu foydalanuvchini blokdan chiqarmoqchimisiz?') : (language === 'ru' ? 'Вы хотите забанить этого пользователя?' : 'Siz bu foydalanuvchini bloklamoqchimisiz?'),
+      async () => {
+         try {
+           await updateDoc(doc(db, 'users', uid), { isBanned: !isCurrentlyBanned });
+         } catch(err:any) {
+           alert("Ошибка: " + err.message);
+         }
       }
     );
   };
@@ -565,7 +677,7 @@ export default function AdminPanel() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-           <h2 className="text-4xl font-black text-gray-900 uppercase tracking-tight">Админ-панель</h2>
+           <h2 className="text-4xl font-black text-blue-950 uppercase tracking-tight">Админ-панель</h2>
            <div className="w-24 h-2 bg-red-600 mt-2 rounded-full"></div>
         </div>
         
@@ -578,62 +690,459 @@ export default function AdminPanel() {
             </div>
           )}
           <div>
-            <p className="text-sm font-black text-gray-900">{user.displayName || user.email}</p>
-            <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Администратор</p>
+            <p className="text-sm font-black text-blue-950">{user.displayName || user.email}</p>
+            <p className="text-[10px] font-black uppercase text-blue-500 tracking-wider">Администратор</p>
           </div>
         </div>
       </div>
       
-      <div className="flex flex-wrap gap-2 mb-8 bg-gray-100/50 p-1.5 rounded-2xl border border-gray-100">
-          <button 
-            onClick={() => setActiveTab('orders')}
-            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'orders' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
-          >
-            {language === 'ru' ? 'Заказы' : 'Buyurtmalar'}
-          </button>
-          <button 
-            onClick={() => setActiveTab('products')}
-            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'products' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
-          >
-            {language === 'ru' ? 'Товары' : 'Mahsulotlar'}
-          </button>
-          <button 
-            onClick={() => setActiveTab('categories')}
-            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'categories' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
-          >
-            {language === 'ru' ? 'Категории' : 'Kategoriyalar'}
-          </button>
-          <button 
-            onClick={() => setActiveTab('promocodes')}
-            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'promocodes' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
-          >
-            {language === 'ru' ? 'Промокоды' : 'Promokodlar'}
-          </button>
-          <button 
-            onClick={() => setActiveTab('admins')}
-            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'admins' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
-          >
-            {language === 'ru' ? 'Админы' : 'Adminlar'}
-          </button>
-          <button 
-            onClick={() => setActiveTab('settings')}
-            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'settings' ? 'bg-white text-primary shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
-          >
-            {language === 'ru' ? 'Настройки' : 'Sozlamalar'}
-          </button>
+      <div className="flex flex-col gap-4 mb-8">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-wider text-blue-400 mb-2 ml-4">ОСНОВНЫЕ</p>
+          <div className="flex flex-wrap gap-2 justify-center lg:justify-start bg-gray-100/50 p-2 rounded-[1.5rem] border border-gray-100">
+            <button 
+              onClick={() => setActiveTab('orders')}
+              className={`flex-1 sm:flex-none justify-center px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${activeTab === 'orders' ? 'bg-white text-primary shadow-sm' : 'text-blue-400 hover:text-blue-950 border border-transparent hover:border-gray-200 hover:bg-gray-50'}`}
+            >
+              {language === 'ru' ? 'Заказы' : 'Buyurtmalar'}
+            </button>
+            <button 
+              onClick={() => setActiveTab('consultations')}
+              className={`flex-1 sm:flex-none justify-center px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${activeTab === 'consultations' ? 'bg-white text-primary shadow-sm' : 'text-blue-400 hover:text-blue-950 border border-transparent hover:border-gray-200 hover:bg-gray-50'}`}
+            >
+              {language === 'ru' ? 'Заявки' : 'Arizalar'}
+            </button>
+            <button 
+              onClick={() => setActiveTab('settings')}
+              className={`flex-1 sm:flex-none justify-center px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${activeTab === 'settings' ? 'bg-white text-primary shadow-sm' : 'text-blue-400 hover:text-blue-950 border border-transparent hover:border-gray-200 hover:bg-gray-50'}`}
+            >
+              {language === 'ru' ? 'Настройки' : 'Sozlamalar'}
+            </button>
+            <button 
+              onClick={() => setActiveTab('categories')}
+              className={`flex-1 sm:flex-none justify-center px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${activeTab === 'categories' ? 'bg-white text-primary shadow-sm' : 'text-blue-400 hover:text-blue-950 border border-transparent hover:border-gray-200 hover:bg-gray-50'}`}
+            >
+              {language === 'ru' ? 'Категории' : 'Kategoriyalar'}
+            </button>
+            <button 
+              onClick={() => setActiveTab('news')}
+              className={`flex-1 sm:flex-none justify-center px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${activeTab === 'news' ? 'bg-white text-primary shadow-sm' : 'text-blue-400 hover:text-blue-950 border border-transparent hover:border-gray-200 hover:bg-gray-50'}`}
+            >
+              {language === 'ru' ? 'Новости' : 'Yangiliklar'}
+            </button>
+          </div>
+        </div>
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-wider text-blue-400 mb-2 ml-4">МАГАЗИН</p>
+          <div className="flex flex-wrap gap-2 justify-center lg:justify-start bg-gray-100/50 p-2 rounded-[1.5rem] border border-gray-100 mb-4">
+            <button 
+              onClick={() => setActiveTab('products')}
+              className={`flex-1 sm:flex-none justify-center px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${activeTab === 'products' ? 'bg-white text-primary shadow-sm' : 'text-blue-400 hover:text-blue-950 border border-transparent hover:border-gray-200 hover:bg-gray-50'}`}
+            >
+              {language === 'ru' ? 'Товары' : 'Mahsulotlar'}
+            </button>
+            <button 
+              onClick={() => setActiveTab('promocodes')}
+              className={`flex-1 sm:flex-none justify-center px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${activeTab === 'promocodes' ? 'bg-white text-primary shadow-sm' : 'text-blue-400 hover:text-blue-950 border border-transparent hover:border-gray-200 hover:bg-gray-50'}`}
+            >
+              {language === 'ru' ? 'Промокоды' : 'Promokodlar'}
+            </button>
+          </div>
+        </div>
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-wider text-blue-400 mb-2 ml-4">ИНТЕГРАЦИИ</p>
+          <div className="flex flex-wrap gap-2 justify-center lg:justify-start bg-gray-100/50 p-2 rounded-[1.5rem] border border-gray-100 mb-4">
+            <button 
+              onClick={() => setActiveTab('telegram')}
+              className={`flex-1 sm:flex-none justify-center px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${activeTab === 'telegram' ? 'bg-white text-primary shadow-sm' : 'text-blue-400 hover:text-blue-950 border border-transparent hover:border-gray-200 hover:bg-gray-50'}`}
+            >
+              {language === 'ru' ? 'Telegram' : 'Telegram'}
+            </button>
+            <button 
+              onClick={() => setActiveTab('partners')}
+              className={`flex-1 sm:flex-none justify-center px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${activeTab === 'partners' ? 'bg-white text-primary shadow-sm' : 'text-blue-400 hover:text-blue-950 border border-transparent hover:border-gray-200 hover:bg-gray-50'}`}
+            >
+              {language === 'ru' ? 'Партнеры' : 'Hamkorlar'}
+            </button>
+            <button 
+              onClick={() => setActiveTab('branches')}
+              className={`flex-1 sm:flex-none justify-center px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${activeTab === 'branches' ? 'bg-white text-primary shadow-sm' : 'text-blue-400 hover:text-blue-950 border border-transparent hover:border-gray-200 hover:bg-gray-50'}`}
+            >
+              {language === 'ru' ? 'Филиалы' : 'Filiallar'}
+            </button>
+          </div>
+        </div>
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-wider text-blue-400 mb-2 ml-4">СИСТЕМА</p>
+          <div className="flex flex-wrap gap-2 justify-center lg:justify-start bg-gray-100/50 p-2 rounded-[1.5rem] border border-gray-100 mb-4">
+            <button 
+              onClick={() => setActiveTab('users')}
+              className={`flex-1 sm:flex-none justify-center px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${activeTab === 'users' ? 'bg-white text-primary shadow-sm' : 'text-blue-400 hover:text-blue-950 border border-transparent hover:border-gray-200 hover:bg-gray-50'}`}
+            >
+              {language === 'ru' ? 'Пользователи' : 'Foydalanuvchilar'}
+            </button>
+            <button 
+              onClick={() => setActiveTab('updates')}
+              className={`flex-1 sm:flex-none justify-center px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${activeTab === 'updates' ? 'bg-white text-primary shadow-sm' : 'text-blue-400 hover:text-blue-950 border border-transparent hover:border-gray-200 hover:bg-gray-50'}`}
+            >
+              {language === 'ru' ? 'Обновления' : 'Yangilanishlar'}
+            </button>
+            <button 
+              onClick={() => setActiveTab('ai-import')}
+              className={`flex-1 sm:flex-none justify-center px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${activeTab === 'ai-import' ? 'bg-white text-primary shadow-sm' : 'text-blue-400 hover:text-blue-950 border border-transparent hover:border-gray-200 hover:bg-gray-50'}`}
+            >
+              {language === 'ru' ? 'AI Импорт' : 'AI Import'}
+            </button>
+          </div>
+        </div>
       </div>
 
-      {activeTab === 'settings' && (
-        <div className="p-8 bg-white rounded-2xl border border-gray-100 shadow-sm space-y-12">
-            <div className="border-b border-gray-100 pb-4">
-              <h3 className="text-xl font-black uppercase">Настройки сайта</h3>
-              <p className="text-gray-500 text-sm">Управление внешним видом и доступом</p>
-            </div>
+      
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      
+
+      
+
+      {activeTab === 'news' && (
+        <section className="bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
+           <div className="flex justify-between items-center mb-8">
+              <div className="flex items-center gap-3">
+                 <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600">
+                   <Newspaper className="w-6 h-6" />
+                 </div>
+                 <h3 className="text-xl font-black text-blue-950 uppercase">Новости</h3>
+              </div>
+              <button 
+                onClick={async () => {
+                  const newRef = doc(collection(db, 'news'));
+                  await setDoc(newRef, {
+                    title: { ru: 'Новая новость', uz: 'Yangi yangilik' },
+                    content: { ru: 'Текст новости', uz: 'Yangilik matni' },
+                    image: '',
+                    date: new Date().toISOString()
+                  });
+                }}
+                className="px-6 py-3 bg-primary text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:shadow-xl transition-all"
+              >
+                + Добавить новость
+              </button>
+           </div>
+           
+           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {news.map(item => (
+                <div key={item.id} className="bg-gray-50 p-6 rounded-2xl border border-gray-100 space-y-4">
+                   <div className="flex justify-between items-center mb-2">
+                      <span className="text-[10px] font-black uppercase text-blue-500 tracking-wider">
+                        {item.date ? (() => {
+                          try {
+                            const date = new Date(item.date);
+                            if (isNaN(date.getTime())) return item.date;
+                            const day = String(date.getDate()).padStart(2, '0');
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const year = String(date.getFullYear()).slice(-2);
+                            return `${day}-${month}-${year}`;
+                          } catch {
+                            return item.date;
+                          }
+                        })() : 'Нет даты'}
+                      </span>
+                    </div>
+                   <div className="aspect-video relative rounded-xl overflow-hidden bg-white border border-gray-100 group">
+                      {item.image ? <img src={item.image} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-blue-700 font-black uppercase text-[10px]">Нет фото</div>}
+                      <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
+                         <Upload className="w-6 h-6 text-white" />
+                         <input type="file" className="hidden" accept="image/*" onChange={e => { if (e.target.files?.[0]) handleEntityImageUpload('news', item.id, e.target.files[0]) }} />
+                      </label>
+                   </div>
+                   <input value={item.title.ru} onChange={e => updateDoc(doc(db, 'news', item.id), { 'title.ru': e.target.value })} placeholder="Заголовок (RU)" className="w-full px-4 py-2 bg-white rounded-xl text-xs font-bold border border-gray-100" />
+                   <input value={item.title.uz} onChange={e => updateDoc(doc(db, 'news', item.id), { 'title.uz': e.target.value })} placeholder="Заголовок (UZ)" className="w-full px-4 py-2 bg-white rounded-xl text-xs font-bold border border-gray-100" />
+                   <textarea value={item.content.ru} onChange={e => updateDoc(doc(db, 'news', item.id), { 'content.ru': e.target.value })} placeholder="Текст (RU)" className="w-full px-4 py-2 bg-white rounded-xl text-xs h-24 border border-gray-100" />
+                   <textarea value={item.content.uz} onChange={e => updateDoc(doc(db, 'news', item.id), { 'content.uz': e.target.value })} placeholder="Текст (UZ)" className="w-full px-4 py-2 bg-white rounded-xl text-xs h-24 border border-gray-100" />
+                   <button onClick={() => { 
+                      showConfirm(
+                        language === 'ru' ? 'Удаление новости' : 'Yangilikni o\'chirish',
+                        language === 'ru' ? 'Вы уверены, что хотите безвозвратно удалить эту новость?' : 'Siz ushbu yangilikni butunlay o\'chirib tashlamoqchimisiz?',
+                        async () => {
+                          try {
+                            await deleteDoc(doc(db, 'news', item.id));
+                          } catch (err) {
+                            handleFirestoreError(err, OperationType.DELETE, `news/${item.id}`);
+                          }
+                        }
+                      );
+                    }} className="w-full py-2 bg-red-100 text-red-600 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-red-500 hover:text-white transition-all">Удалить</button>
+                </div>
+              ))}
+           </div>
+        </section>
+      )}
+
+      {activeTab === 'partners' && (
+        <section className="bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
+           <div className="flex justify-between items-center mb-8">
+              <div className="flex items-center gap-3">
+                 <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600">
+                   <ShieldCheck className="w-6 h-6" />
+                 </div>
+                 <h3 className="text-xl font-black text-blue-950 uppercase">Наши Партнеры</h3>
+              </div>
+              <button 
+                onClick={async () => {
+                  const newRef = doc(collection(db, 'partners'));
+                  await setDoc(newRef, {
+                    name: 'Новый партнер',
+                    image: '',
+                    url: ''
+                  });
+                }}
+                className="px-6 py-3 bg-primary text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:shadow-xl transition-all"
+              >
+                + Добавить партнера
+              </button>
+           </div>
+           
+           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+              {partners.map(p => (
+                <div key={p.id} className="bg-gray-50 p-6 rounded-2xl border border-gray-100 space-y-4">
+                   <div className="aspect-square relative rounded-xl overflow-hidden bg-white border border-gray-100 group flex items-center justify-center p-4">
+                      {p.image ? <img src={p.image} className="max-w-full max-h-full object-contain" /> : <ShieldCheck className="w-12 h-12 text-blue-800" />}
+                      <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
+                         <Upload className="w-6 h-6 text-white" />
+                         <input type="file" className="hidden" accept="image/*" onChange={e => { if (e.target.files?.[0]) handleEntityImageUpload('partners', p.id, e.target.files[0]) }} />
+                      </label>
+                   </div>
+                   <input value={p.name} onChange={e => updateDoc(doc(db, 'partners', p.id), { name: e.target.value })} placeholder="Название партнера" className="w-full px-4 py-2 bg-white rounded-xl text-xs font-bold border border-gray-100" />
+                   <input value={p.url || ''} onChange={e => updateDoc(doc(db, 'partners', p.id), { url: e.target.value })} placeholder="Ссылка (URL)" className="w-full px-4 py-2 bg-white rounded-xl text-xs font-bold border border-gray-100" />
+                   <button onClick={() => { 
+                      showConfirm(
+                        language === 'ru' ? 'Удаление партнера' : 'Hamkorni o\'chirish',
+                        language === 'ru' ? 'Вы уверены, что хотите удалить этого партнера?' : 'Siz ushbu hamkorni o\'chirib tashlamoqchimisiz?',
+                        async () => {
+                          try {
+                            await deleteDoc(doc(db, 'partners', p.id));
+                          } catch (err) {
+                            handleFirestoreError(err, OperationType.DELETE, `partners/${p.id}`);
+                          }
+                        }
+                      );
+                    }} className="w-full py-2 bg-red-100 text-red-600 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-red-500 hover:text-white transition-all">Удалить</button>
+                </div>
+              ))}
+           </div>
+        </section>
+      )}
+
+      {activeTab === 'branches' && (
+        <section className="bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
+           <div className="flex justify-between items-center mb-8">
+              <div className="flex items-center gap-3">
+                 <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-600">
+                   <MapPin className="w-6 h-6" />
+                 </div>
+                 <h3 className="text-xl font-black text-blue-950 uppercase">Наши Филиалы</h3>
+              </div>
+              <button 
+                onClick={async () => {
+                  const newRef = doc(collection(db, 'branches'));
+                  await setDoc(newRef, {
+                    name: { ru: 'Новый филиал', uz: 'Yangi filial' },
+                    address: { ru: 'Адрес филиала', uz: 'Filial manzili' },
+                    phone: '',
+                    mapLink: ''
+                  });
+                }}
+                className="px-6 py-3 bg-primary text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:shadow-xl transition-all"
+              >
+                + Добавить филиал
+              </button>
+           </div>
+           
+           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {branches.map(b => (
+                <div key={b.id} className="bg-gray-50 p-6 rounded-2xl border border-gray-100 space-y-4">
+                   <div className="grid grid-cols-2 gap-2">
+                     <input value={b.name.ru} onChange={e => updateDoc(doc(db, 'branches', b.id), { 'name.ru': e.target.value })} placeholder="Название (RU)" className="w-full px-4 py-2 bg-white rounded-xl text-xs font-bold border border-gray-100" />
+                     <input value={b.name.uz} onChange={e => updateDoc(doc(db, 'branches', b.id), { 'name.uz': e.target.value })} placeholder="Название (UZ)" className="w-full px-4 py-2 bg-white rounded-xl text-xs font-bold border border-gray-100" />
+                   </div>
+                   <div className="space-y-2">
+                     <input value={b.address.ru} onChange={e => updateDoc(doc(db, 'branches', b.id), { 'address.ru': e.target.value })} placeholder="Адрес (RU)" className="w-full px-4 py-2 bg-white rounded-xl text-xs font-bold border border-gray-100" />
+                     <input value={b.address.uz} onChange={e => updateDoc(doc(db, 'branches', b.id), { 'address.uz': e.target.value })} placeholder="Адрес (UZ)" className="w-full px-4 py-2 bg-white rounded-xl text-xs font-bold border border-gray-100" />
+                   </div>
+                   <div className="grid grid-cols-2 gap-2">
+                     <input value={b.phone} onChange={e => updateDoc(doc(db, 'branches', b.id), { phone: e.target.value })} placeholder="Телефон" className="w-full px-4 py-2 bg-white rounded-xl text-xs font-bold border border-gray-100" />
+                     <input value={b.mapLink} onChange={e => updateDoc(doc(db, 'branches', b.id), { mapLink: e.target.value })} placeholder="Ссылка на карту" className="w-full px-4 py-2 bg-white rounded-xl text-xs font-bold border border-gray-100" />
+                   </div>
+                   <button onClick={() => { 
+                      showConfirm(
+                        language === 'ru' ? 'Удаление филиала' : 'Filialni o\'chirish',
+                        language === 'ru' ? 'Вы уверены, что хотите удалить этот филиал?' : 'Usbu filialni o\'chirib tashlamoqchimisiz?',
+                        async () => {
+                          try {
+                            await deleteDoc(doc(db, 'branches', b.id));
+                          } catch (err) {
+                            handleFirestoreError(err, OperationType.DELETE, `branches/${b.id}`);
+                          }
+                        }
+                      );
+                    }} className="w-full py-2 bg-red-100 text-red-600 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-red-500 hover:text-white transition-all">Удалить</button>
+                </div>
+              ))}
+           </div>
+        </section>
+      )}
+
+      {activeTab === 'telegram' && (
+        <section className="bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
+            <div className="flex items-center gap-3 mb-8">
+              <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center text-blue-600">
+                <Send className="w-6 h-6" />
+              </div>
+              <h3 className="text-xl font-black text-blue-950 uppercase">Настройки Telegram</h3>
+            </div>
+            <div className="space-y-6 max-w-2xl bg-gray-50 p-8 rounded-[2rem] border border-gray-100">
+               <div>
+                  <label className="block text-[10px] font-black uppercase text-blue-500 mb-2 ml-2">Token бота</label>
+                  <input value={tgToken} onChange={e => setTgToken(e.target.value)} placeholder="BotFather token" className="w-full px-6 py-4 bg-white rounded-2xl border border-gray-100 font-bold text-sm shadow-sm" />
+               </div>
+               <div>
+                  <label className="block text-[10px] font-black uppercase text-blue-500 mb-2 ml-2">Chat ID (основной)</label>
+                  <input value={tgChatId} onChange={e => setTgChatId(e.target.value)} placeholder="-100..." className="w-full px-6 py-4 bg-white rounded-2xl border border-gray-100 font-bold text-sm shadow-sm" />
+               </div>
+               <div className="flex gap-4">
+                  <button onClick={saveTgSettings} disabled={tgSaveLoading} className="flex-1 py-4 bg-primary text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:shadow-lg transition-all">
+                     {tgSaveLoading ? 'Сохранение...' : 'Сохранить'}
+                  </button>
+                  <button onClick={sendTgTest} disabled={tgTestLoading} className="flex-1 py-4 bg-green-500 text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:shadow-lg transition-all">
+                     {tgTestLoading ? 'Отправка...' : 'Отправить тест'}
+                  </button>
+               </div>
+               <div className="pt-6 border-t border-gray-200 mt-6">
+                  <button onClick={fetchTgUpdates} className="w-full py-4 bg-gray-200 text-blue-950 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-300 transition-all mb-4">
+                    Получить Chat ID из сообщений бота
+                  </button>
+                  {tgUpdates.map(u => (
+                     <div key={u.update_id} className="mt-2 text-xs font-mono bg-white p-3 border border-gray-100 rounded-xl flex justify-between items-center shadow-sm">
+                       <span className="font-bold text-blue-900">{u.message?.chat?.title || u.message?.from?.first_name}</span>
+                       <span className="bg-gray-100 px-2 py-1 rounded font-mono select-all">{u.message?.chat?.id}</span>
+                     </div>
+                  ))}
+               </div>
+            </div>
+        </section>
+      )}
+
+      {activeTab === 'updates' && (
+        <section className="bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
+           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+              <div className="flex items-center gap-3">
+                 <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center text-amber-600">
+                   <Clock className="w-6 h-6" />
+                 </div>
+                 <div>
+                   <h3 className="text-xl font-black text-blue-950 uppercase">Обновления системы</h3>
+                   <p className="text-[10px] font-black text-blue-500 uppercase tracking-wider mt-0.5">Публикация новостей и объявлений</p>
+                 </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-4">
+                 <div className="flex items-center gap-2 bg-gray-50 px-4 py-2 rounded-xl">
+                   <Clock className="w-4 h-4 text-amber-500" />
+                   <input 
+                     type="datetime-local" 
+                     value={updateScheduledTime}
+                     onChange={(e) => setUpdateScheduledTime(e.target.value)}
+                     className="bg-transparent text-[10px] font-black uppercase tracking-widest outline-none"
+                   />
+                   <span className="text-[10px] font-black text-blue-400">GMT+3</span>
+                 </div>
+                 <button 
+                   onClick={async () => {
+                     const newRef = doc(collection(db, 'updates'));
+                     await setDoc(newRef, {
+                       title: { ru: 'Пример обновления', uz: 'Yangilanish namunasi' },
+                       features: { 
+                         ru: ['Добавлена новая функция', 'Исправлен баг'], 
+                         uz: ['Yangi funksiya qo\'shildi', 'Xatolik tuzatildi'] 
+                       },
+                       date: updateScheduledTime ? new Date(updateScheduledTime).toISOString() : new Date().toISOString(),
+                       isAnnouncement: true
+                     });
+                     setUpdateScheduledTime('');
+                   }}
+                   className="px-6 py-3 bg-amber-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-amber-600 transition-all flex items-center gap-2"
+                 >
+                   <Bell className="w-4 h-4" /> {language === 'ru' ? 'Анонс' : 'E\'lon'}
+                 </button>
+                 <button 
+                   onClick={async () => {
+                     const newRef = doc(collection(db, 'updates'));
+                     await setDoc(newRef, {
+                       title: { ru: 'Пример обновления', uz: 'Yangilanish namunasi' },
+                       features: { 
+                         ru: ['Добавлена новая функция', 'Исправлен баг'], 
+                         uz: ['Yangi funksiya qo\'shildi', 'Xatolik tuzatildi'] 
+                       },
+                       date: new Date().toISOString()
+                     });
+                   }}
+                   className="px-6 py-3 bg-blue-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-blue-700 transition-all"
+                 >
+                   + Добавить обновление
+                 </button>
+              </div>
+           </div>
+           
+           <div className="space-y-6">
+              {updates.map(update => (
+                <div key={update.id} className="bg-gray-50 p-8 rounded-[2.5rem] border border-gray-100 relative group">
+                   <div className="absolute top-6 right-6 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                     <button onClick={() => showConfirm('Удаление обновления', 'Вы уверены, что хотите удалить это обновление?', () => deleteDoc(doc(db, 'updates', update.id)))} className="p-2 bg-red-100 text-red-600 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                   </div>
+                   {update.isAnnouncement && (
+                     <div className="mb-4 inline-flex items-center gap-2 px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-[9px] font-black uppercase tracking-wider">
+                       <Bell className="w-3 h-3" /> Анонс / Объявление
+                     </div>
+                   )}
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="space-y-4">
+                         <label className="block text-[10px] font-black uppercase text-blue-500">Заголовок</label>
+                         <input value={update.title.ru} onChange={e => updateDoc(doc(db, 'updates', update.id), { 'title.ru': e.target.value })} className="w-full px-4 py-2 rounded-xl border border-gray-100 text-sm font-bold" placeholder="RU" />
+                         <input value={update.title.uz} onChange={e => updateDoc(doc(db, 'updates', update.id), { 'title.uz': e.target.value })} className="w-full px-4 py-2 rounded-xl border border-gray-100 text-sm font-bold" placeholder="UZ" />
+                         <div className="pt-2">
+                           <label className="block text-[10px] font-black uppercase text-blue-500 mb-1">Дата выхода</label>
+                           <input 
+                             type="datetime-local" 
+                             value={update.date ? new Date(new Date(update.date).getTime() + (3*60*60*1000)).toISOString().slice(0, 16) : ''} 
+                             onChange={e => updateDoc(doc(db, 'updates', update.id), { date: new Date(new Date(e.target.value).getTime() - (3*60*60*1000)).toISOString() })} 
+                             className="w-full px-4 py-2 rounded-xl border border-gray-100 text-xs font-bold" 
+                           />
+                         </div>
+                      </div>
+                      <div className="space-y-4">
+                         <label className="block text-[10px] font-black uppercase text-blue-500">Список изменений (через запятую)</label>
+                         <textarea value={update.features.ru?.join(', ')} onChange={e => updateDoc(doc(db, 'updates', update.id), { 'features.ru': e.target.value.split(',').map(s => s.trim()) })} className="w-full px-4 py-2 rounded-xl border border-gray-100 text-xs font-medium h-32" placeholder="RU changes" />
+                         <textarea value={update.features.uz?.join(', ')} onChange={e => updateDoc(doc(db, 'updates', update.id), { 'features.uz': e.target.value.split(',').map(s => s.trim()) })} className="w-full px-4 py-2 rounded-xl border border-gray-100 text-xs font-medium h-32" placeholder="UZ changes" />
+                      </div>
+                   </div>
+                </div>
+              ))}
+           </div>
+        </section>
+      )}
+
+      {activeTab === 'settings' && (
+        <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+<details className="group pb-4 border-b border-gray-100 bg-white rounded-2xl shadow-sm mb-4">
+  <summary className="flex items-center justify-between cursor-pointer list-none font-black text-blue-950 uppercase select-none outline-none p-6">
+    <span>Основные настройки сайта</span>
+    <span className="transition duration-300 group-open:rotate-180 bg-gray-50 w-8 h-8 flex items-center justify-center rounded-full text-blue-500">
+       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    </span>
+  </summary>
+  <div className="px-6 pb-6 mt-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-4">
                <div className="space-y-4">
                   <div>
-                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-2 ml-2">Название сайта</label>
+                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-blue-500 mb-2 ml-2">Название сайта</label>
                     <input 
                       type="text" 
                       value={siteName}
@@ -642,7 +1151,7 @@ export default function AdminPanel() {
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-2 ml-2">Основной цвет (HEX)</label>
+                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-blue-500 mb-2 ml-2">Основной цвет (HEX)</label>
                     <div className="flex gap-2">
                        <input 
                          type="text" 
@@ -650,58 +1159,184 @@ export default function AdminPanel() {
                          onChange={e => setPrimaryColor(e.target.value)}
                          className="flex-1 px-5 py-4 bg-gray-50 rounded-2xl border border-gray-100 font-black text-sm uppercase"
                        />
-                       <div className="w-14 h-14 rounded-2xl border-4 border-white shadow-lg" style={{ backgroundColor: primaryColor }} />
+                       <div className="relative w-14 h-14 rounded-2xl border-4 border-white shadow-lg overflow-hidden shrink-0">
+                         <input type="color" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} className="absolute -top-4 -left-4 w-32 h-32 cursor-pointer opacity-0" />
+                         <div className="w-full h-full pointer-events-none" style={{ backgroundColor: primaryColor }} />
+                       </div>
                     </div>
                   </div>
                </div>
 
-               <div className="space-y-4">
-                  <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 mb-2 ml-2">Логотип сайта</label>
-                  <div className="flex items-center gap-6 p-6 bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200 group hover:border-primary transition-colors">
-                     <div className="w-20 h-20 bg-white rounded-2xl shadow-xl p-2 flex items-center justify-center">
-                        <img src={siteSettings.logoUrl} className="w-full h-full object-contain" />
-                     </div>
-                     <label className="cursor-pointer">
-                        <div className="px-4 py-2 bg-primary text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:shadow-primary/30 transition-all">Загрузить лого</div>
-                        <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && handleSiteImageUpload('logoUrl', e.target.files[0])} />
-                     </label>
+               {/* Рекламный Баннер */}
+               <div className="space-y-4 pt-6 border-t border-gray-100 md:border-t-0 md:pt-0 md:border-l md:pl-8">
+                  <div className="flex items-center justify-between">
+                     <label className="block text-sm font-black uppercase tracking-wider text-blue-950">Рекламный блок на главном экране</label>
+                     <button
+                        onClick={() => setAdForm(prev => ({ ...prev, isActive: !prev.isActive }))}
+                        className={`w-14 h-8 rounded-full transition-colors relative ${adForm.isActive ? 'bg-green-500' : 'bg-gray-200'}`}
+                     >
+                        <div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${adForm.isActive ? 'translate-x-6' : 'translate-x-0'}`} />
+                     </button>
                   </div>
+                  {adForm.isActive && (
+                     <div className="bg-gray-50 p-6 rounded-[2rem] space-y-4">
+                        <input type="text" placeholder="Заголовок рекламы" value={adForm.text} onChange={e => setAdForm(prev => ({ ...prev, text: e.target.value }))} className="w-full px-5 py-4 bg-white rounded-2xl border border-gray-100 font-bold text-sm" />
+                        <input type="text" placeholder="Ссылка (необязательно)" value={adForm.link} onChange={e => setAdForm(prev => ({ ...prev, link: e.target.value }))} className="w-full px-5 py-4 bg-white rounded-2xl border border-gray-100 font-bold text-sm" />
+                        <div className="flex items-center gap-6">
+                          {adForm.imageUrl && (
+                            <img src={adForm.imageUrl || undefined} className="h-16 w-16 object-cover rounded-xl shadow-sm" />
+                          )}
+                          <label className="cursor-pointer px-6 py-3 bg-white text-gray-700 font-bold text-[10px] uppercase tracking-widest rounded-xl hover:bg-gray-100 transition-colors shadow-sm">
+                            Загрузить Картинку
+                            <input type="file" className="hidden" accept="image/*" onChange={(e) => { if (e.target.files?.[0]) handleSiteImageUpload('ad.imageUrl', e.target.files[0]) }} />
+                          </label>
+                        </div>
+                     </div>
+                  )}
                </div>
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-4 pt-6 mt-6 border-t border-gray-100">
+                <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-blue-500 mb-2 ml-2">Логотип сайта</label>
+                <div className="flex items-center gap-6 p-6 bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200 group hover:border-primary transition-colors">
+                   <div className="w-20 h-20 bg-white rounded-2xl shadow-xl p-2 flex items-center justify-center">
+                      <img src={siteSettings.logoUrl || undefined} className="w-full h-full object-contain" />
+                   </div>
+                   <label className="cursor-pointer">
+                      <div className="px-4 py-2 bg-primary text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:shadow-primary/30 transition-all">Загрузить лого</div>
+                      <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && handleSiteImageUpload('logoUrl', e.target.files[0])} />
+                   </label>
+                </div>
+             </div>
+
+            <div className="space-y-6 mt-6 pt-6 border-t border-gray-100">
                <div>
-                 <label className="block text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Главный баннер</label>
+                 <label className="block text-xs font-black uppercase tracking-widest text-blue-500 mb-2">Главный баннер</label>
                         <div className="relative aspect-video bg-white rounded-xl border border-gray-200 overflow-hidden group">
-                           <img src={siteSettings.bannerUrl} className="w-full h-full object-cover" />
+                           <img src={siteSettings.bannerUrl || undefined} className="w-full h-full object-cover" />
                            <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
-                              <Upload className="w-6 h-6 text-white" />
+                              <Upload className="w-6 h-6 text-blue-900" />
                               <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleSiteImageUpload('bannerUrl', e.target.files[0])} />
                            </label>
                         </div>
                       </div>
                       <div>
-                        <label className="block text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Нижнее фото (Footer Image)</label>
+                        <label className="block text-xs font-black uppercase tracking-widest text-blue-500 mb-2">Нижнее фото (Footer Image)</label>
                         <div className="relative h-24 bg-white rounded-xl border border-gray-200 overflow-hidden group">
-                           {siteSettings.footerImageUrl ? <img src={siteSettings.footerImageUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400 text-[10px] font-black uppercase tracking-widest">Нет фото</div>}
+                           {siteSettings.footerImageUrl ? <img src={siteSettings.footerImageUrl || undefined} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-blue-500 text-[10px] font-black uppercase tracking-widest">Нет фото</div>}
                            <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
-                              <Upload className="w-6 h-6 text-white" />
-                              <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleSiteImageUpload('footerImageUrl', e.target.files[0])} />
+                              <Upload className="w-6 h-6 text-blue-900" />
+                              <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && handleSiteImageUpload('footerImageUrl', e.target.files[0])} />
                            </label>
                         </div>
                       </div>
                    </div>
-               <section className="bg-gray-50/50 p-6 rounded-3xl border border-gray-100">
+
+             <div className="space-y-6 mt-6 pt-6 border-t border-gray-100">
+                <h4 className="text-sm font-black uppercase tracking-widest text-blue-900 mb-4">Секция "О нас"</h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-4">
+                    <label className="block text-[10px] font-black uppercase tracking-widest text-blue-500 mb-2 ml-2">Фото "О нас"</label>
+                    <div className="relative aspect-video bg-white rounded-2xl border-2 border-dashed border-gray-200 overflow-hidden group hover:border-primary transition-colors">
+                      {aboutImage ? (
+                        <img src={aboutImage || undefined} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-blue-500 text-[10px] font-black uppercase tracking-widest">Нет фото</div>
+                      )}
+                      <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
+                        <Upload className="w-6 h-6 text-white" />
+                        <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && handleSiteImageUpload('aboutImage', e.target.files[0])} />
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="block text-[10px] font-black uppercase tracking-widest text-blue-500 ml-2">Лет опыта</label>
+                        <input 
+                          type="number" 
+                          value={aboutStats.years} 
+                          onChange={e => setAboutStats({...aboutStats, years: parseInt(e.target.value) || 0})}
+                          className="w-full px-5 py-4 bg-gray-50 rounded-2xl border border-gray-100 font-bold text-sm"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="block text-[10px] font-black uppercase tracking-widest text-blue-500 ml-2">Клиентов</label>
+                        <input 
+                          type="number" 
+                          value={aboutStats.clients} 
+                          onChange={e => setAboutStats({...aboutStats, clients: parseInt(e.target.value) || 0})}
+                          className="w-full px-5 py-4 bg-gray-50 rounded-2xl border border-gray-100 font-bold text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                       <label className="block text-[10px] font-black uppercase tracking-widest text-blue-500 ml-2">Текст О нас (RU)</label>
+                       <textarea 
+                         value={aboutForm.ru}
+                         onChange={e => setAboutForm({...aboutForm, ru: e.target.value})}
+                         className="w-full px-5 py-4 bg-gray-50 rounded-2xl border border-gray-100 font-bold text-sm h-32"
+                       />
+                    </div>
+                    <div className="space-y-2">
+                       <label className="block text-[10px] font-black uppercase tracking-widest text-blue-500 ml-2">Текст О нас (UZ)</label>
+                       <textarea 
+                         value={aboutForm.uz}
+                         onChange={e => setAboutForm({...aboutForm, uz: e.target.value})}
+                         className="w-full px-5 py-4 bg-gray-50 rounded-2xl border border-gray-100 font-bold text-sm h-32"
+                       />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4 pt-6 border-t border-gray-100">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                       <label className="block text-[10px] font-black uppercase tracking-widest text-blue-500 ml-2">Главный заголовок (RU)</label>
+                       <input 
+                         type="text"
+                         value={heroTitle.ru}
+                         onChange={e => setHeroTitle({...heroTitle, ru: e.target.value})}
+                         className="w-full px-5 py-4 bg-gray-50 rounded-2xl border border-gray-100 font-bold text-sm"
+                       />
+                    </div>
+                    <div className="space-y-2">
+                       <label className="block text-[10px] font-black uppercase tracking-widest text-blue-500 ml-2">Главный заголовок (UZ)</label>
+                       <input 
+                         type="text"
+                         value={heroTitle.uz}
+                         onChange={e => setHeroTitle({...heroTitle, uz: e.target.value})}
+                         className="w-full px-5 py-4 bg-gray-50 rounded-2xl border border-gray-100 font-bold text-sm"
+                       />
+                    </div>
+                  </div>
+                </div>
+             </div>
+
+  </div>
+</details>
+<details className="group pb-4 border-b border-gray-100 bg-white rounded-2xl shadow-sm mb-4">
+  <summary className="flex items-center justify-between cursor-pointer list-none font-black text-blue-950 uppercase select-none outline-none p-6">
+    <span>Слайды в Hero-секции</span>
+    <span className="transition duration-300 group-open:rotate-180 bg-gray-50 w-8 h-8 flex items-center justify-center rounded-full text-blue-500">
+       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    </span>
+  </summary>
+  <div className="px-6 pb-6 mt-2">
+    
                  <div className="flex items-center justify-between mb-8">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-purple-100 rounded-xl flex items-center justify-center">
                         <Share2 className="w-6 h-6 text-purple-600" />
                       </div>
-                      <h3 className="text-xl font-black text-gray-900 uppercase">Слайды в Hero-секции</h3>
+                      <h3 className="text-xl font-black text-blue-950 uppercase">Слайды в Hero-секции</h3>
                     </div>
                     <button 
                       onClick={() => setHeroSlides([...heroSlides, { id: Date.now().toString(), imageUrl: '', title: { ru: '', uz: '' }, text: { ru: '', uz: '' } }])}
-                      className="px-4 py-2 bg-purple-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-purple-700"
+                      className="px-4 py-2 bg-purple-600 text-white rounded-xl font-black uppercase text-[10px] tracking-wider shadow-lg hover:bg-purple-700"
                     >
                       + Добавить слайд
                     </button>
@@ -711,7 +1346,7 @@ export default function AdminPanel() {
                     {heroSlides.map((slide, idx) => (
                       <div key={slide.id} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-4">
                          <div className="flex justify-between items-center mb-2">
-                            <span className="text-[10px] font-black uppercase text-gray-400">Слайд #{idx + 1}</span>
+                            <span className="text-[10px] font-black uppercase text-blue-500">Слайд #{idx + 1}</span>
                             <button onClick={() => setHeroSlides(heroSlides.filter(s => s.id !== slide.id))} className="text-red-500 hover:text-red-600">
                                <Trash2 className="w-5 h-5" />
                             </button>
@@ -719,10 +1354,10 @@ export default function AdminPanel() {
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-4">
                                <div className="relative group aspect-video rounded-xl overflow-hidden bg-gray-100 border-2 border-dashed border-gray-200">
-                                  {slide.imageUrl ? <img src={slide.imageUrl} className="w-full h-full object-cover" /> : null}
+                                  {slide.imageUrl ? <img src={slide.imageUrl || undefined} className="w-full h-full object-cover" /> : null}
                                   <label className="absolute inset-0 flex flex-col items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                                     <Upload className="w-8 h-8 text-white mb-2" />
-                                     <span className="text-[10px] font-black uppercase text-white tracking-widest">Изменить фото</span>
+                                     <Upload className="w-8 h-8 text-blue-900 mb-2" />
+                                     <span className="text-[10px] font-black uppercase text-blue-900 tracking-widest">Изменить фото</span>
                                      <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
                                         const file = e.target.files?.[0];
                                         if (file) {
@@ -743,19 +1378,31 @@ export default function AdminPanel() {
                       </div>
                     ))}
                  </div>
-              </section>
+              
+  </div>
+</details>
 
-               <section className="bg-gray-50/50 p-6 rounded-3xl border border-gray-100">
+
+               
+<details className="group pb-4 border-b border-gray-100 bg-white rounded-2xl shadow-sm mb-4">
+  <summary className="flex items-center justify-between cursor-pointer list-none font-black text-blue-950 uppercase select-none outline-none p-6">
+    <span>Настройки самовывоза</span>
+    <span className="transition duration-300 group-open:rotate-180 bg-gray-50 w-8 h-8 flex items-center justify-center rounded-full text-blue-500">
+       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    </span>
+  </summary>
+  <div className="px-6 pb-6 mt-2">
+    
                   <div className="flex items-center gap-3 mb-8">
                      <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
                         <MapPin className="w-6 h-6 text-emerald-600" />
                      </div>
-                     <h3 className="text-xl font-black text-gray-900 uppercase">Настройки самовывоза</h3>
+                     <h3 className="text-xl font-black text-blue-950 uppercase">Настройки самовывоза</h3>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                      <div className="space-y-4">
                         <div>
-                           <label className="block text-[10px] font-black uppercase text-gray-400 mb-2 ml-2">Адрес самовывоза (RU)</label>
+                           <label className="block text-[10px] font-black uppercase text-blue-500 mb-2 ml-2">Адрес самовывоза (RU)</label>
                            <input 
                               type="text" 
                               value={pickupSettings.address.ru} 
@@ -765,7 +1412,7 @@ export default function AdminPanel() {
                            />
                         </div>
                         <div>
-                           <label className="block text-[10px] font-black uppercase text-gray-400 mb-2 ml-2">Адрес самовывоза (UZ)</label>
+                           <label className="block text-[10px] font-black uppercase text-blue-500 mb-2 ml-2">Адрес самовывоза (UZ)</label>
                            <input 
                               type="text" 
                               value={pickupSettings.address.uz} 
@@ -777,7 +1424,7 @@ export default function AdminPanel() {
                      </div>
                      <div className="space-y-4">
                         <div>
-                           <label className="block text-[10px] font-black uppercase text-gray-400 mb-2 ml-2">Ссылка на карту (Google/Yandex)</label>
+                           <label className="block text-[10px] font-black uppercase text-blue-500 mb-2 ml-2">Ссылка на карту (Google/Yandex)</label>
                            <input 
                               type="text" 
                               value={pickupSettings.mapUrl} 
@@ -787,7 +1434,7 @@ export default function AdminPanel() {
                            />
                         </div>
                         <div>
-                           <label className="block text-[10px] font-black uppercase text-gray-400 mb-2 ml-2">Телефон менеджера</label>
+                           <label className="block text-[10px] font-black uppercase text-blue-500 mb-2 ml-2">Телефон менеджера</label>
                            <input 
                               type="text" 
                               value={pickupSettings.callCenter} 
@@ -798,35 +1445,47 @@ export default function AdminPanel() {
                         </div>
                      </div>
                   </div>
-               </section>
+               
+  </div>
+</details>
 
-               <section className="bg-gray-50/50 p-6 rounded-3xl border border-gray-100">
+
+               
+<details className="group pb-4 border-b border-gray-100 bg-white rounded-2xl shadow-sm mb-4">
+  <summary className="flex items-center justify-between cursor-pointer list-none font-black text-blue-950 uppercase select-none outline-none p-6">
+    <span>Контакты и Режим работы</span>
+    <span className="transition duration-300 group-open:rotate-180 bg-gray-50 w-8 h-8 flex items-center justify-center rounded-full text-blue-500">
+       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    </span>
+  </summary>
+  <div className="px-6 pb-6 mt-2">
+    
                   <div className="flex items-center gap-3 mb-8">
                      <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
                        <Share2 className="w-6 h-6 text-emerald-600" />
                      </div>
-                     <h3 className="text-xl font-black text-gray-900 uppercase">Контакты и Режим работы</h3>
+                     <h3 className="text-xl font-black text-blue-950 uppercase">Контакты и Режим работы</h3>
                   </div>
                  
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-6">
                        <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-1">
-                             <label className="text-[10px] font-black uppercase text-gray-400 ml-2">Телефон</label>
+                             <label className="text-[10px] font-black uppercase text-blue-500 ml-2">Телефон</label>
                              <input type="text" value={contactsForm.phone} onChange={e => setContactsForm({...contactsForm, phone: e.target.value})} className="w-full px-4 py-3 bg-white rounded-xl border border-gray-200 text-xs font-bold" />
                           </div>
                           <div className="space-y-1">
-                             <label className="text-[10px] font-black uppercase text-gray-400 ml-2">Email</label>
+                             <label className="text-[10px] font-black uppercase text-blue-500 ml-2">Email</label>
                              <input type="text" value={contactsForm.email} onChange={e => setContactsForm({...contactsForm, email: e.target.value})} className="w-full px-4 py-3 bg-white rounded-xl border border-gray-200 text-xs font-bold" />
                           </div>
                        </div>
                        <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-1">
-                             <label className="text-[10px] font-black uppercase text-gray-400 ml-2">Время работы (RU)</label>
+                             <label className="text-[10px] font-black uppercase text-blue-500 ml-2">Время работы (RU)</label>
                              <input type="text" value={contactsForm?.workingHours?.ru || ''} onChange={e => setContactsForm({...contactsForm, workingHours: {...contactsForm.workingHours, ru: e.target.value}})} className="w-full px-4 py-3 bg-white rounded-xl border border-gray-200 text-xs font-bold" />
                           </div>
                           <div className="space-y-1">
-                             <label className="text-[10px] font-black uppercase text-gray-400 ml-2">Время работы (UZ)</label>
+                             <label className="text-[10px] font-black uppercase text-blue-500 ml-2">Время работы (UZ)</label>
                              <input type="text" value={contactsForm?.workingHours?.uz || ''} onChange={e => setContactsForm({...contactsForm, workingHours: {...contactsForm.workingHours, uz: e.target.value}})} className="w-full px-4 py-3 bg-white rounded-xl border border-gray-200 text-xs font-bold" />
                           </div>
                        </div>
@@ -834,16 +1493,16 @@ export default function AdminPanel() {
                     
                     <div className="space-y-4">
                        <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-gray-100 mb-2">
-                          <span className="text-[10px] font-black uppercase text-gray-400">Социальные сети</span>
+                          <span className="text-[10px] font-black uppercase text-blue-500">Социальные сети</span>
                           <button onClick={handleAddSocialLink} className="text-primary font-black text-[10px] uppercase hover:underline anim-tap">+ Добавить</button>
                        </div>
                        <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                           {socialLinks.map(link => (
                              <div key={link.id} className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 shadow-sm group">
                                 <div className="w-10 h-10 bg-gray-50 rounded-lg flex items-center justify-center relative overflow-hidden border border-gray-100 shrink-0">
-                                   {link.iconUrl ? <img src={link.iconUrl} className="w-full h-full object-cover" /> : <Share2 className="w-5 h-5 text-gray-300" />}
+                                   {link.iconUrl ? <img src={link.iconUrl || undefined} className="w-full h-full object-cover" /> : <Share2 className="w-5 h-5 text-blue-700" />}
                                    <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
-                                      <Upload className="w-4 h-4 text-white" />
+                                      <Upload className="w-4 h-4 text-blue-900" />
                                       <input type="file" className="hidden" accept="image/*" onChange={(e) => e.target.files?.[0] && handleSocialIconUpload(link.id, e.target.files[0])} />
                                    </label>
                                 </div>
@@ -851,22 +1510,34 @@ export default function AdminPanel() {
                                    <input value={link.name} onChange={e => handleUpdateSocialLink(link.id, 'name', e.target.value)} placeholder="Название" className="text-[10px] font-black uppercase bg-gray-50 rounded-lg px-2 py-1 focus:bg-white transition-all" />
                                    <input value={link.url} onChange={e => handleUpdateSocialLink(link.id, 'url', e.target.value)} placeholder="Ссылка" className="text-[10px] font-bold bg-gray-50 rounded-lg px-2 py-1 focus:bg-white transition-all" />
                                 </div>
-                                <button onClick={() => handleDeleteSocialLink(link.id)} className="p-1 text-gray-200 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                                <button onClick={() => handleDeleteSocialLink(link.id)} className="p-1 text-blue-800 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
                              </div>
                           ))}
                        </div>
                     </div>
                  </div>
-              </section>
+              
+  </div>
+</details>
+
 
               {/* Payment Methods Section */}
-              <section className="bg-gray-50/50 p-6 rounded-3xl border border-gray-100">
+              
+<details className="group pb-4 border-b border-gray-100 bg-white rounded-2xl shadow-sm mb-4">
+  <summary className="flex items-center justify-between cursor-pointer list-none font-black text-blue-950 uppercase select-none outline-none p-6">
+    <span>Способы оплаты</span>
+    <span className="transition duration-300 group-open:rotate-180 bg-gray-50 w-8 h-8 flex items-center justify-center rounded-full text-blue-500">
+       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    </span>
+  </summary>
+  <div className="px-6 pb-6 mt-2">
+    
                  <div className="flex items-center justify-between mb-8">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
                         <CreditCard className="w-6 h-6 text-indigo-600" />
                       </div>
-                      <h3 className="text-xl font-black text-gray-900 uppercase">Способы оплаты</h3>
+                      <h3 className="text-xl font-black text-blue-950 uppercase">Способы оплаты</h3>
                     </div>
                     <button 
                       onClick={() => setPaymentMethodsList([...paymentMethodsList, { id: `pm-${Date.now()}`, name: 'Новый метод', image: '', description: { ru: '', uz: '' }, btnColor: '#2563eb', btnText: { ru: 'Я оплатил', uz: "Men to'ladim" } }])}
@@ -882,9 +1553,9 @@ export default function AdminPanel() {
                           <div className="flex justify-between items-start">
                              <div className="flex items-center gap-4 flex-1">
                                 <div className="w-16 h-16 bg-gray-50 border border-gray-100 rounded-xl relative group overflow-hidden shrink-0 flex items-center justify-center">
-                                   {pm.image ? <img src={pm.image || undefined} className="w-full h-full object-contain" /> : <CreditCard className="w-6 h-6 text-gray-200" />}
+                                   {pm.image ? <img src={pm.image || undefined} className="w-full h-full object-contain" /> : <CreditCard className="w-6 h-6 text-blue-800" />}
                                    <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
-                                      <Upload className="w-4 h-4 text-white" />
+                                      <Upload className="w-4 h-4 text-blue-900" />
                                       <input type="file" className="hidden" accept="image/*" onChange={async (e) => {
                                          if (e.target.files?.[0]) {
                                             const url = await uploadImgBB(e.target.files[0]);
@@ -894,27 +1565,27 @@ export default function AdminPanel() {
                                    </label>
                                 </div>
                                 <div className="flex-1 space-y-2">
-                                   <input value={pm.name} onChange={e => setPaymentMethodsList(paymentMethodsList.map((p, i) => i === idx ? { ...p, name: e.target.value } : p))} placeholder="Название платежной системы" className="w-full text-sm font-black text-gray-900 bg-gray-50 px-4 py-3 rounded-xl focus:bg-white transition-all border border-transparent focus:border-gray-200" />
+                                   <input value={pm.name} onChange={e => setPaymentMethodsList(paymentMethodsList.map((p, i) => i === idx ? { ...p, name: e.target.value } : p))} placeholder="Название платежной системы" className="w-full text-sm font-black text-blue-950 bg-gray-50 px-4 py-3 rounded-xl focus:bg-white transition-all border border-transparent focus:border-gray-200" />
                                    <div className="flex items-center gap-3">
                                       <div className="flex items-center gap-2">
                                          <input type="color" value={pm.btnColor} onChange={e => setPaymentMethodsList(paymentMethodsList.map((p, i) => i === idx ? { ...p, btnColor: e.target.value } : p))} className="w-6 h-6 rounded-lg cursor-pointer border-2 border-white shadow-sm" />
-                                         <span className="text-[10px] font-black uppercase text-gray-400">Цвет кнопки</span>
+                                         <span className="text-[10px] font-black uppercase text-blue-500">Цвет кнопки</span>
                                       </div>
                                       <label className="flex items-center gap-2 cursor-pointer group">
                                          <input type="checkbox" checked={pm.screenshotRequired} onChange={e => setPaymentMethodsList(paymentMethodsList.map((p, i) => i === idx ? { ...p, screenshotRequired: e.target.checked } : p))} className="w-4 h-4 rounded text-primary focus:ring-primary" />
-                                         <span className="text-[10px] font-black uppercase text-gray-400 group-hover:text-gray-600 transition-colors">Нужен скриншот?</span>
+                                         <span className="text-[10px] font-black uppercase text-blue-500 group-hover:text-gray-600 transition-colors">Нужен скриншот?</span>
                                       </label>
                                    </div>
                                 </div>
                              </div>
-                             <button onClick={() => setPaymentMethodsList(paymentMethodsList.filter((_, i) => i !== idx))} className="p-2 text-gray-200 hover:text-red-500 transition-colors">
+                             <button onClick={() => setPaymentMethodsList(paymentMethodsList.filter((_, i) => i !== idx))} className="p-2 text-blue-800 hover:text-red-500 transition-colors">
                                 <Trash2 className="w-5 h-5" />
                              </button>
                           </div>
                           
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                              <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase text-gray-400 ml-2">Инструкция (RU)</label>
+                                <label className="text-[10px] font-black uppercase text-blue-500 ml-2">Инструкция (RU)</label>
                                 <textarea 
                                   value={pm.description?.ru || ''} 
                                   onChange={e => setPaymentMethodsList(paymentMethodsList.map((p, i) => i === idx ? { ...p, description: { ...p.description || {}, ru: e.target.value } } : p))}
@@ -923,7 +1594,7 @@ export default function AdminPanel() {
                                 />
                              </div>
                              <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase text-gray-400 ml-2">Инструкция (UZ)</label>
+                                <label className="text-[10px] font-black uppercase text-blue-500 ml-2">Инструкция (UZ)</label>
                                 <textarea 
                                   value={pm.description?.uz || ''} 
                                   onChange={e => setPaymentMethodsList(paymentMethodsList.map((p, i) => i === idx ? { ...p, description: { ...p.description || {}, uz: e.target.value } } : p))}
@@ -935,168 +1606,179 @@ export default function AdminPanel() {
                           
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
-                               <label className="text-[10px] font-black uppercase text-gray-400 ml-2">Текст кнопки (RU)</label>
+                               <label className="text-[10px] font-black uppercase text-blue-500 ml-2">Текст кнопки (RU)</label>
                                <input value={pm.btnText?.ru || ''} onChange={e => setPaymentMethodsList(paymentMethodsList.map((p, i) => i === idx ? { ...p, btnText: { ...p.btnText || {}, ru: e.target.value } } : p))} placeholder="Я оплатил" className="w-full px-4 py-3 bg-gray-50 rounded-xl text-xs font-bold border border-transparent focus:border-gray-200 focus:bg-white transition-all" />
                             </div>
                             <div className="space-y-2">
-                               <label className="text-[10px] font-black uppercase text-gray-400 ml-2">Текст кнопки (UZ)</label>
+                               <label className="text-[10px] font-black uppercase text-blue-500 ml-2">Текст кнопки (UZ)</label>
                                <input value={pm.btnText?.uz || ''} onChange={e => setPaymentMethodsList(paymentMethodsList.map((p, i) => i === idx ? { ...p, btnText: { ...p.btnText || {}, uz: e.target.value } } : p))} placeholder="Men to'ladim" className="w-full px-4 py-3 bg-gray-50 rounded-xl text-xs font-bold border border-transparent focus:border-gray-200 focus:bg-white transition-all" />
                             </div>
+                          </div>
+
+                          <div className="space-y-4 pt-4 border-t border-gray-100">
+                             <label className="text-[10px] font-black uppercase text-blue-500 ml-2">Тип метода оплаты</label>
+                             <select 
+                               value={pm.type || 'manual'} 
+                               onChange={e => setPaymentMethodsList(paymentMethodsList.map((p, i) => i === idx ? { ...p, type: e.target.value as any } : p))}
+                               className="w-full px-4 py-3 bg-gray-50 rounded-xl text-xs font-bold border border-transparent focus:border-gray-200 focus:bg-white transition-all"
+                             >
+                                <option value="manual">Ручная (инструкция + скриншот)</option>
+                                <option value="botfather">Telegram Invoice Link (через BotFather)</option>
+                                <option value="redirect">Прямая ссылка (URL Click/Payme)</option>
+                             </select>
+                             
+                             {pm.type === 'botfather' && (
+                                 <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase text-blue-500 ml-2">Provider Token (из BotFather)</label>
+                                    <input 
+                                       value={pm.providerToken || ''} 
+                                       onChange={e => setPaymentMethodsList(paymentMethodsList.map((p, i) => i === idx ? { ...p, providerToken: e.target.value } : p))} 
+                                       placeholder="Например: 410694247:TEST:53cda..." 
+                                       className="w-full px-4 py-3 bg-gray-50 rounded-xl text-xs font-bold border border-transparent focus:border-gray-200 focus:bg-white transition-all" 
+                                    />
+                                 </div>
+                             )}
+                             {pm.type === 'redirect' && (
+                                 <div className="space-y-2">
+                                    <label className="text-[10px] font-black uppercase text-blue-500 ml-2">Шаблон ссылки на оплату</label>
+                                    <div className="text-[9px] text-gray-500 font-medium px-2 pb-1">Используйте <code>{'{amount}'}</code> и <code>{'{order_id}'}</code> в ссылке.</div>
+                                    <input 
+                                       value={pm.redirectUrlTemplate || ''} 
+                                       onChange={e => setPaymentMethodsList(paymentMethodsList.map((p, i) => i === idx ? { ...p, redirectUrlTemplate: e.target.value } : p))} 
+                                       placeholder="https://my.click.uz/services/pay?merchant_id=...&amount={amount}&transaction_param={order_id}" 
+                                       className="w-full px-4 py-3 bg-gray-50 rounded-xl text-xs font-bold border border-transparent focus:border-gray-200 focus:bg-white transition-all" 
+                                    />
+                                 </div>
+                             )}
                           </div>
                        </div>
                     ))}
                  </div>
-              </section>
-
-              {/* About Us Section */}
-              <section className="bg-gray-50/50 p-6 rounded-3xl border border-gray-100">
-                 <div className="flex items-center gap-3 mb-8">
-                    <div className="w-10 h-10 bg-rose-100 rounded-xl flex items-center justify-center">
-                      <FileText className="w-6 h-6 text-rose-600" />
-                  </div>
-                  <h3 className="text-xl font-black text-gray-900 uppercase">О нас</h3>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Текст (RU)</label>
-                    <textarea value={aboutUs.ru} onChange={e => setAboutUs({...aboutUs, ru: e.target.value})} className="w-full p-4 bg-white rounded-2xl border border-gray-100 h-40 text-sm font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Текст (UZ)</label>
-                    <textarea value={aboutUs.uz} onChange={e => setAboutUs({...aboutUs, uz: e.target.value})} className="w-full p-4 bg-white rounded-2xl border border-gray-100 h-40 text-sm font-bold" />
-                  </div>
-                </div>
-              </section>
+              </div>
+           </details>
 
               {/* Ad Block Section */}
-              <section className="bg-gray-50/50 p-6 rounded-3xl border border-gray-100">
-                 <div className="flex items-center justify-between mb-8">
+              <details className="group pb-4 border-b border-gray-100 bg-white rounded-2xl shadow-sm mb-4">
+                <summary className="flex items-center justify-between cursor-pointer list-none font-black text-blue-950 uppercase select-none outline-none p-6">
+                  <span>Дополнительный Рекламный блок</span>
+                  <span className="transition duration-300 group-open:rotate-180 bg-gray-50 w-8 h-8 flex items-center justify-center rounded-full text-blue-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                  </span>
+                </summary>
+                <div className="px-6 pb-6 mt-2">
+                  <div className="flex items-center justify-between mb-8">
                     <div className="flex items-center gap-3">
-                       <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center text-amber-600">
-                         <Share2 className="w-6 h-6" />
-                       </div>
-                       <h3 className="text-xl font-black text-gray-900 uppercase">Рекламный блок</h3>
+                      <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center text-amber-600">
+                        <Share2 className="w-6 h-6" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-xl font-black text-blue-950 uppercase">Рекламный блок</h3>
+                      </div>
                     </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                       <input type="checkbox" checked={showAdBlock} onChange={e => setShowAdBlock(e.target.checked)} className="sr-only peer" />
-                       <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                    </label>
-                 </div>
-                 
-                 {showAdBlock && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                       <div className="space-y-4">
-                          <label className="block text-[10px] font-black uppercase text-gray-400 ml-2">Главная картинка блока</label>
-                          <div className="relative aspect-video rounded-2xl bg-white border border-gray-100 overflow-hidden group">
-                             {adBlockImage ? <img src={adBlockImage} className="w-full h-full object-cover" /> : null}
-                             <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
-                                <Upload className="w-8 h-8 text-white" />
-                                <input type="file" className="hidden" accept="image/*" onChange={(e) => e.target.files?.[0] && handleSiteImageUpload('adBlockImage', e.target.files[0])} />
-                             </label>
-                          </div>
-                       </div>
-                       <div className="space-y-4 pt-4">
-                          <input value={adBlockTitle || ''} onChange={e => setAdBlockTitle(e.target.value)} placeholder="Заголовок блока" className="w-full px-4 py-3 bg-white rounded-xl text-xs font-bold border border-gray-100" />
-                          <input value={adBlockLink || ''} onChange={e => setAdBlockLink(e.target.value)} placeholder="Ссылка (например, в телеграм)" className="w-full px-4 py-3 bg-white rounded-xl text-xs font-bold border border-gray-100" />
-                       </div>
-                    </div>
-                 )}
-              </section>
-
-              {/* Passwords (Secure User List) Section */}
-              <section className="bg-gray-50/50 p-6 rounded-3xl border border-gray-100">
-                  <div className="flex items-center gap-3 mb-8">
-                    <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-600">
-                      <ShieldCheck className="w-6 h-6" />
-                    </div>
-                    <h3 className="text-xl font-black text-gray-900 uppercase">Пароли & Пользователи</h3>
+                    <button
+                        onClick={() => setShowAdBlock(!showAdBlock)}
+                        className={`w-14 h-8 rounded-full transition-colors relative ${showAdBlock ? 'bg-green-500' : 'bg-gray-200'}`}
+                     >
+                        <div className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform ${showAdBlock ? 'translate-x-6' : 'translate-x-0'}`} />
+                    </button>
                   </div>
                   
+                  {showAdBlock && (
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-[10px] font-black uppercase tracking-wider text-blue-500 mb-2">Заголовок (RU)</label>
+                          <input value={adBlockTitle.ru} onChange={e => setAdBlockTitle({...adBlockTitle, ru: e.target.value})} className="w-full px-5 py-4 bg-white rounded-2xl border border-gray-200 font-bold text-xs" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-black uppercase tracking-wider text-blue-500 mb-2">Заголовок (UZ)</label>
+                          <input value={adBlockTitle.uz} onChange={e => setAdBlockTitle({...adBlockTitle, uz: e.target.value})} className="w-full px-5 py-4 bg-white rounded-2xl border border-gray-200 font-bold text-xs" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black uppercase tracking-wider text-blue-500 mb-2">Ссылка</label>
+                        <input value={adBlockLink} onChange={e => setAdBlockLink(e.target.value)} className="w-full px-5 py-4 bg-white rounded-2xl border border-gray-200 font-bold text-xs" placeholder="https://..." />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black uppercase tracking-wider text-blue-500 mb-2">Изображение</label>
+                        <div className="flex items-center gap-6">
+                          <div className="w-32 h-20 bg-gray-100 rounded-xl overflow-hidden border border-gray-100 flex items-center justify-center">
+                            {adBlockImage ? <img src={adBlockImage} className="w-full h-full object-cover" /> : <Share2 className="w-6 h-6 text-gray-400" />}
+                          </div>
+                          <label className="cursor-pointer px-6 py-3 bg-white text-gray-700 font-bold text-[10px] uppercase tracking-wider rounded-xl hover:bg-gray-100 transition-colors shadow-sm border border-gray-200">
+                            Выбрать фото
+                            <input type="file" className="hidden" accept="image/*" onChange={(e) => { if (e.target.files?.[0]) handleSiteImageUpload('adBlockImage', e.target.files[0]) }} />
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </details>
+
+              {/* Passwords (Secure User List) Section */}
+              <details className="group pb-4 border-b border-gray-100 bg-white rounded-2xl shadow-sm mb-4">
+                <summary className="flex items-center justify-between cursor-pointer list-none font-black text-blue-950 uppercase select-none outline-none p-6">
+                  <span>Пароли & Пользователи</span>
+                  <span className="transition duration-300 group-open:rotate-180 bg-gray-50 w-8 h-8 flex items-center justify-center rounded-full text-blue-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                  </span>
+                </summary>
+                <div className="px-6 pb-6 mt-2">
                   {!showPasswordsSection ? (
                     <div className="space-y-4">
-                       <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Для доступа к этому разделу введите мастер-пароль</p>
-                       <div className="flex gap-2">
-                          <input 
-                            type="password" 
-                            value={passwordInput}
-                            onChange={e => setPasswordInput(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && passwordInput === '1267144' && setShowPasswordsSection(true)}
-                            className="flex-1 px-4 py-3 bg-white rounded-xl border border-gray-100 font-bold"
-                            placeholder="Код доступа..."
-                          />
-                          <button 
-                            onClick={() => {
-                              if (passwordInput === '1267144') setShowPasswordsSection(true);
-                              else alert('Неверный код');
-                            }}
-                            className="px-6 py-3 bg-primary text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg"
-                          >
-                            Войти
-                          </button>
-                       </div>
+                      <p className="text-[10px] text-blue-500 font-black uppercase tracking-wider">Для доступа к этому разделу введите мастер-пароль</p>
+                      <div className="flex gap-2">
+                        <input 
+                          type="password" 
+                          value={passwordInput}
+                          onChange={e => setPasswordInput(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && passwordInput === '1267144' && setShowPasswordsSection(true)}
+                          className="flex-1 px-4 py-3 bg-white rounded-xl border border-gray-100 font-bold"
+                          placeholder="Код доступа..."
+                        />
+                        <button 
+                          onClick={() => {
+                            if (passwordInput === '1267144') setShowPasswordsSection(true);
+                            else alert('Неверный код');
+                          }}
+                          className="px-6 py-3 bg-primary text-white rounded-xl font-black uppercase text-[10px] tracking-wider shadow-lg"
+                        >
+                          Войти
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <div className="space-y-4">
-                       <div className="p-6 bg-white border border-gray-100 rounded-2xl shadow-sm">
-                          <div className="flex justify-between items-center mb-6">
-                            <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Все пользователи ({allUsers.length})</p>
-                            <button onClick={() => setShowPasswordsSection(false)} className="text-[10px] font-black uppercase text-red-500 hover:underline">Закрыть</button>
-                          </div>
-                          <div className="divide-y divide-gray-50 max-h-96 overflow-y-auto pr-4 custom-scrollbar">
-                             {allUsers.map(u => (
-                                <div key={u.id} className="py-4 flex justify-between items-center group">
-                                   <div className="flex items-center gap-3">
-                                      <div className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center border border-gray-100 overflow-hidden">
-                                         {u.photoURL ? <img src={u.photoURL || undefined} className="w-full h-full object-cover" /> : <div className="text-gray-300 font-black">{u.displayName?.[0] || u.email?.[0]?.toUpperCase()}</div>}
-                                      </div>
-                                      <div>
-                                         <p className="text-xs font-black text-gray-900">{u.displayName || 'Без имени'}</p>
-                                         <p className="text-[10px] text-gray-400 font-medium">{u.email}</p>
-                                      </div>
-                                   </div>
-                                   <div className="text-right">
-                                      <p className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full inline-block mb-1 ${u.role === 'admin' ? 'bg-purple-50 text-purple-600' : 'bg-gray-50 text-gray-400'}`}>{u.role}</p>
-                                      <p className="text-[8px] font-mono text-gray-300">UID: {u.uid?.substring(0, 12)}...</p>
-                                   </div>
-                                </div>
-                             ))}
-                          </div>
-                       </div>
+                      <div className="p-6 bg-white border border-gray-100 rounded-2xl shadow-sm">
+                        <div className="flex justify-between items-center mb-6">
+                          <p className="text-[10px] font-black uppercase text-blue-500 tracking-wider">Все пользователи ({allUsers.length})</p>
+                          <button onClick={() => setShowPasswordsSection(false)} className="text-[10px] font-black uppercase text-red-500">Скрыть</button>
+                        </div>
+                        <div className="divide-y divide-gray-100 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
+                           {allUsers.map((u: any) => (
+                              <div key={u.id} className="py-4 flex justify-between items-center group">
+                                 <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center border border-gray-100 overflow-hidden">
+                                       {u.photoURL ? <img src={u.photoURL} className="w-full h-full object-cover" /> : <div className="text-blue-700 font-black">{u.displayName?.[0] || u.email?.[0]?.toUpperCase()}</div>}
+                                    </div>
+                                    <div>
+                                       <p className="text-xs font-black text-blue-950">{u.displayName || 'Без имени'}</p>
+                                       <p className="text-[10px] text-blue-500 font-medium">{u.email}</p>
+                                    </div>
+                                 </div>
+                                 <div className="text-right">
+                                    <p className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full inline-block mb-1 ${u.role === 'admin' ? 'bg-purple-50 text-purple-600' : 'bg-gray-50 text-blue-500'}`}>{u.role}</p>
+                                    <p className="text-[8px] font-mono text-blue-700">UID: {u.uid?.substring(0, 12)}...</p>
+                                 </div>
+                              </div>
+                           ))}
+                        </div>
+                      </div>
                     </div>
                   )}
-              </section>
-
-              <section className="bg-gray-50/50 p-6 rounded-3xl border border-gray-100">
-                  <div className="flex items-center gap-3 mb-8">
-                     <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600">
-                        <FileText className="w-6 h-6" />
-                     </div>
-                     <div>
-                        <h3 className="text-xl font-black text-gray-900 uppercase">Описание в футере</h3>
-                        <p className="text-[10px] font-black uppercase text-gray-400">Текст о производстве (пандусы, металлоконструкции и др.)</p>
-                     </div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
-                     <div className="space-y-2">
-                        <label className="block text-[10px] font-black uppercase text-gray-500 mb-1 ml-2">Текст в футере (RU)</label>
-                        <textarea 
-                           className="w-full px-5 py-4 bg-white rounded-2xl border border-gray-200 font-bold text-xs h-32 focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none"
-                           value={siteDescription.ru}
-                           onChange={e => setSiteDescription({...siteDescription, ru: e.target.value})}
-                           placeholder="Например: Производство пандусов и металлоконструкций по всему Узбекистану..."
-                        />
-                     </div>
-                     <div className="space-y-2">
-                        <label className="block text-[10px] font-black uppercase text-gray-500 mb-1 ml-2">Текст в футере (UZ)</label>
-                        <textarea 
-                           className="w-full px-5 py-4 bg-white rounded-2xl border border-gray-200 font-bold text-xs h-32 focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none"
-                           value={siteDescription.uz}
-                           onChange={e => setSiteDescription({...siteDescription, uz: e.target.value})}
-                           placeholder="Masalan: O'zbekiston bo'ylab panduslar va metall konstruksiyalar ishlab chiqarish..."
-                        />
-                     </div>
-                  </div>
-              </section>
+                </div>
+              </details>
 
               {/* Sticky Save Button Container */}
               <div className="sticky bottom-4 left-0 right-0 z-30 pt-4">
@@ -1109,7 +1791,7 @@ export default function AdminPanel() {
                     className="w-full py-5 bg-primary text-white rounded-2xl font-black uppercase tracking-[0.2em] shadow-2xl hover:shadow-primary/40 transition-all disabled:opacity-50 flex items-center justify-center gap-4 border-4 border-white"
                   >
                     {customizationSaving ? (
-                      <Loader className="w-6 h-6 animate-spin text-white" />
+                      <Loader className="w-6 h-6 animate-spin text-blue-900" />
                     ) : (
                       <Save className="w-6 h-6" />
                     )}
@@ -1128,16 +1810,16 @@ export default function AdminPanel() {
               <div className="w-10 h-10 bg-pink-100 rounded-xl flex items-center justify-center">
                 <Tag className="w-6 h-6 text-pink-600" />
               </div>
-              <h3 className="text-xl font-black text-gray-900 uppercase">Промокоды</h3>
+              <h3 className="text-xl font-black text-blue-950 uppercase">Промокоды</h3>
            </div>
            
            <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 mb-6">
-              <h4 className="text-sm font-black text-gray-400 uppercase mb-4">Создать промокод</h4>
+              <h4 className="text-sm font-black text-blue-500 uppercase mb-4">Создать промокод</h4>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                  <input type="text" value={newPromoCode} onChange={e => setNewPromoCode(e.target.value)} placeholder="КОД20" className="px-4 py-3 bg-white rounded-xl font-black text-sm uppercase shadow-sm border border-gray-100" />
                  <input type="number" value={newPromoDiscount} onChange={e => setNewPromoDiscount(e.target.value)} placeholder="Скидка %" className="px-4 py-3 bg-white rounded-xl font-black text-sm shadow-sm border border-gray-100" />
                  <input type="number" value={newPromoLimit} onChange={e => setNewPromoLimit(e.target.value)} placeholder="Лимит использований" className="px-4 py-3 bg-white rounded-xl font-black text-sm shadow-sm border border-gray-100" />
-                 <button onClick={handleAddPromoCode} className="py-3 bg-pink-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-pink-700 transition-all">Добавить</button>
+                 <button onClick={handleAddPromoCode} className="py-3 bg-pink-600 text-blue-900 rounded-xl font-black uppercase text-[10px] tracking-wider shadow-lg hover:bg-pink-700 transition-all">Добавить</button>
               </div>
            </div>
 
@@ -1145,27 +1827,27 @@ export default function AdminPanel() {
               <table className="w-full text-left">
                  <thead>
                     <tr className="bg-gray-50/50 border-b border-gray-100">
-                       <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Код</th>
-                       <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Скидка</th>
-                       <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400">Лимит</th>
-                       <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-gray-400 text-right">Действие</th>
+                       <th className="px-6 py-4 text-[10px] font-black uppercase tracking-wider text-blue-500">Код</th>
+                       <th className="px-6 py-4 text-[10px] font-black uppercase tracking-wider text-blue-500">Скидка</th>
+                       <th className="px-6 py-4 text-[10px] font-black uppercase tracking-wider text-blue-500">Лимит</th>
+                       <th className="px-6 py-4 text-[10px] font-black uppercase tracking-wider text-blue-500 text-right">Действие</th>
                     </tr>
                  </thead>
                  <tbody className="divide-y divide-gray-100">
                     {promocodesList.map(promo => (
                        <tr key={promo.id}>
-                          <td className="px-6 py-4 font-black text-gray-900">{promo.code}</td>
+                          <td className="px-6 py-4 font-black text-blue-950">{promo.code}</td>
                           <td className="px-6 py-4 font-black text-pink-600">-{promo.discount}%</td>
                           <td className="px-6 py-4">
                              <div className="flex flex-col">
-                                <span className="text-[10px] font-black text-gray-900">{promo.usedCount || 0} / {promo.limit}</span>
+                                <span className="text-[10px] font-black text-blue-950">{promo.usedCount || 0} / {promo.limit}</span>
                                 <div className="w-20 h-1 bg-gray-100 rounded-full mt-1">
                                    <div className="h-full bg-pink-400 rounded-full" style={{ width: `${Math.min(((promo.usedCount || 0) / (promo.limit || 1)) * 100, 100)}%` }} />
                                 </div>
                              </div>
                           </td>
                           <td className="px-6 py-4 text-right">
-                             <button onClick={() => handleDeletePromoCode(promo.id)} className="p-2 text-gray-300 hover:text-red-500 transition-colors">
+                             <button onClick={() => handleDeletePromoCode(promo.id)} className="p-2 text-blue-700 hover:text-red-500 transition-colors">
                                 <Trash2 className="w-5 h-5" />
                              </button>
                           </td>
@@ -1177,54 +1859,163 @@ export default function AdminPanel() {
         </section>
       )}
 
-      {activeTab === 'admins' && (
+
+
+      {activeTab === 'users' && (
         <section className="bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
            <div className="flex items-center gap-3 mb-8">
-              <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-                <Users className="w-6 h-6 text-blue-600" />
+              <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
+                <Users className="w-6 h-6 text-indigo-600" />
               </div>
-              <h3 className="text-xl font-black text-gray-900 uppercase">Управление командой</h3>
+              <h3 className="text-xl font-black text-blue-950 uppercase">Пользователи и Администраторы</h3>
            </div>
-           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
-                 <h4 className="text-sm font-black text-gray-400 uppercase mb-4">Назначить администратора</h4>
-                 <form onSubmit={handleAddAdmin} className="space-y-4">
-                    <input 
-                      type="email" 
-                      value={newAdminEmail}
-                      onChange={(e) => setNewAdminEmail(e.target.value)}
-                      placeholder="Email пользователя..."
-                      className="w-full px-4 py-3 bg-white rounded-xl font-bold text-sm border-2 border-transparent shadow-sm focus:border-primary transition-all"
-                    />
-                    {adminMessage.text && (
-                      <div className={`p-3 rounded-xl text-xs font-bold ${adminMessage.type === 'error' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
-                         {adminMessage.text}
+           
+           <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+              {allUsers.map(u => (
+                 <div key={u.id} className={`flex flex-col md:flex-row items-start md:items-center justify-between p-5 rounded-2xl border ${u.isBanned ? 'bg-red-50 border-red-100' : 'bg-gray-50 border-gray-100'} shadow-sm gap-4`}>
+                    <div className="flex items-center gap-4 flex-1">
+                       <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold shadow-sm overflow-hidden ${u.isBanned ? 'bg-red-300' : 'bg-primary/20 text-primary'}`}>
+                         {u.photoURL ? <img src={u.photoURL || undefined} className="w-full h-full object-cover" /> : <User className="w-6 h-6" />}
+                       </div>
+                       <div>
+                          <p className="font-black text-blue-950">{u.displayName || 'Без имени'}</p>
+                          <p className="text-xs text-blue-400 font-medium">{u.email || 'Без email'} • <span className="uppercase text-[9px] tracking-wider font-black text-indigo-500">{u.provider || 'password'}</span></p>
+                          <div className="mt-2 flex gap-2">
+                             <select
+                               className="text-[10px] font-black uppercase bg-white border border-gray-200 rounded px-2 py-1 outline-none focus:border-blue-500 cursor-pointer"
+                               value={u.role || 'user'}
+                               onChange={async (e) => {
+                                 const newRole = e.target.value;
+                                 if (newRole === 'admin') {
+                                    await setDoc(doc(db, 'admins', u.uid), { email: u.email, addedAt: new Date().toISOString() });
+                                 } else {
+                                    await deleteDoc(doc(db, 'admins', u.uid));
+                                 }
+                               }}
+                             >
+                               <option value="user">Клиент</option>
+                               <option value="admin">Администратор</option>
+                             </select>
+                          </div>
+                       </div>
+                    </div>
+                    {u.uid !== user?.uid && (
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => handleToggleBan(u.uid || u.id, u.isBanned)}
+                          className={`px-4 py-2 ${u.isBanned ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-red-100 text-red-700 hover:bg-red-200'} rounded-xl font-black uppercase text-[10px] tracking-widest transition-colors shrink-0`}
+                        >
+                          {u.isBanned ? 'Разбанить' : 'Забанить'}
+                        </button>
                       </div>
                     )}
-                    <button type="submit" className="w-full py-3 bg-primary text-white rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg hover:shadow-xl transition-all">Назначить</button>
-                 </form>
-              </div>
-              <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
-                 <h4 className="text-sm font-black text-gray-400 uppercase mb-4">Список админов</h4>
-                 <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
-                    {admins.map(admin => (
-                       <div key={admin.uid} className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100 shadow-sm">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center text-primary font-bold shadow-sm overflow-hidden">
-                              {admin.photoURL ? <img src={admin.photoURL} className="w-full h-full object-cover" /> : admin.email?.[0].toUpperCase()}
-                            </div>
-                            <div>
-                               <p className="text-xs font-black text-gray-900">{admin.displayName || 'Пользователь'}</p>
-                               <p className="text-[10px] text-gray-400">{admin.email}</p>
-                            </div>
-                          </div>
-                          <button onClick={() => handleDeleteAdmin(admin.uid)} className="p-2 text-gray-300 hover:text-red-500 transition-colors">
-                             <Trash2 className="w-4 h-4" />
-                          </button>
-                       </div>
-                    ))}
+                 </div>
+              ))}
+           </div>
+        </section>
+      )}
+
+      {activeTab === 'consultations' && (
+        <section className="bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
+           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+              <div className="flex items-center gap-3 text-left">
+                 <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
+                   <MessageSquare className="w-6 h-6 text-emerald-600" />
+                 </div>
+                 <div>
+                   <h3 className="text-xl font-black text-blue-950 uppercase">Заявки на консультацию</h3>
+                   <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mt-0.5">Всего заявок: {helpRequests.length}</p>
                  </div>
               </div>
+              
+              <div className="w-full md:w-auto relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400" />
+                <input 
+                  type="text" 
+                  placeholder="Поиск по имени, телефону или тексту..." 
+                  value={consultationSearchQuery}
+                  onChange={(e) => setConsultationSearchQuery(e.target.value)}
+                  className="w-full md:w-80 pl-12 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold focus:bg-white transition-all outline-none"
+                />
+              </div>
+           </div>
+           
+           <div className="space-y-4 text-left">
+              {helpRequests.length === 0 ? (
+                <div className="text-center py-12 text-blue-500 font-bold uppercase tracking-wider text-xs">
+                  Заявок пока нет
+                </div>
+              ) : (
+                helpRequests.filter(req => {
+                  const query = consultationSearchQuery.toLowerCase();
+                  return (
+                    req.name?.toLowerCase().includes(query) || 
+                    req.phone?.toLowerCase().includes(query) || 
+                    req.situation?.toLowerCase().includes(query) ||
+                    req.tag?.toLowerCase().includes(query)
+                  );
+                }).map(req => (
+                  <div key={req.id} className="p-6 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col md:flex-row justify-between gap-6 hover:bg-white hover:shadow-md transition-all group">
+                    <div className="flex-1">
+                      <div className="flex flex-wrap items-center gap-3 mb-2">
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${req.status === 'processed' ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600 animate-pulse'}`}>
+                          {req.status === 'processed' ? 'Обработано' : 'Новая'}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <Tag className="w-3 h-3 text-blue-400" />
+                          <input 
+                            value={req.tag || ''} 
+                            placeholder="Добавить тег..."
+                            onChange={async (e) => {
+                              await updateDoc(doc(db, 'help_requests', req.id), { tag: e.target.value });
+                            }}
+                            className="bg-transparent border-b border-transparent focus:border-blue-200 outline-none text-[10px] font-black uppercase tracking-wider text-blue-500 w-24"
+                          />
+                        </div>
+                        <span className="text-xs text-blue-500 font-mono">
+                          {req.createdAt?.toDate ? req.createdAt.toDate().toLocaleString() : new Date(req.createdAt).toLocaleString()}
+                        </span>
+                      </div>
+                      <h4 className="text-lg font-black text-blue-950">{req.name}</h4>
+                      <p className="text-sm font-bold text-gray-600 mt-1">{req.phone}</p>
+                      {req.email && <p className="text-xs text-blue-500 mt-1">{req.email}</p>}
+                      <div className="mt-4 p-4 bg-white rounded-xl border border-gray-100">
+                        <p className="text-sm text-gray-700 whitespace-pre-wrap italic">"{req.situation}"</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col justify-center items-end gap-2">
+                      {req.status !== 'processed' && (
+                        <button 
+                          onClick={async () => {
+                            await updateDoc(doc(db, 'help_requests', req.id), { status: 'processed' });
+                          }}
+                          className="px-6 py-3 bg-green-600 text-white rounded-xl font-black uppercase text-[10px] tracking-wider shadow-lg hover:bg-green-700 transition-all flex items-center gap-2 whitespace-nowrap font-bold"
+                        >
+                          <CheckCircle className="w-4 h-4" /> Отметить как обработанную
+                        </button>
+                      )}
+                      <button 
+                        onClick={async () => {
+                          showConfirm(
+                            language === 'ru' ? 'Удаление заявки' : 'Arizani o\'chirish',
+                            language === 'ru' ? 'Удалить эту заявку навсегда?' : 'Ushbu arizani butunlay o\'chirib tashlash?',
+                            async () => {
+                              try {
+                                await deleteDoc(doc(db, 'help_requests', req.id));
+                              } catch (e) {
+                                console.error("Error deleting request:", e);
+                              }
+                            }
+                          );
+                        }}
+                        className="p-3 bg-red-50 text-red-500 rounded-xl border border-red-100 hover:bg-red-500 hover:text-white transition-all shadow-sm"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
            </div>
         </section>
       )}
@@ -1233,8 +2024,8 @@ export default function AdminPanel() {
         <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
            <div className="flex justify-between items-center mb-8">
              <div>
-                <h3 className="text-2xl font-black text-gray-900 uppercase">Категории</h3>
-                <p className="text-[10px] font-black uppercase text-gray-400 mt-1">Управление разделами меню</p>
+                <h3 className="text-2xl font-black text-blue-950 uppercase">Категории</h3>
+                <p className="text-[10px] font-black uppercase text-blue-500 mt-1">Управление разделами меню</p>
              </div>
              <button onClick={handleAddCategory} className="px-6 py-3 bg-primary text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:shadow-xl transition-all">
                + Добавить
@@ -1247,19 +2038,19 @@ export default function AdminPanel() {
                     <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-gray-200">
                        <img src={cat.image || undefined} className="w-full h-full object-cover" />
                        <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity">
-                          <Upload className="w-4 h-4 text-white" />
+                          <Upload className="w-4 h-4 text-blue-900" />
                           <input type="file" className="hidden" onChange={(e) => e.target.files?.[0] && handleEntityImageUpload('categories', cat.id, e.target.files[0])} />
                        </label>
                     </div>
                     <div>
-                       <h4 className="font-black text-gray-900 uppercase text-sm tracking-tight">{cat.name?.ru || cat.name?.uz}</h4>
-                       <p className="text-[10px] font-black uppercase text-gray-400">{cat.name?.uz}</p>
+                       <h4 className="font-black text-blue-950 uppercase text-sm tracking-tight">{cat.name?.ru || cat.name?.uz}</h4>
+                       <p className="text-[10px] font-black uppercase text-blue-500">{cat.name?.uz}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
                      <div className="flex flex-col gap-1">
-                        <button onClick={() => handleMoveCategory(cat.id, 'up')} className="p-1 text-gray-300 hover:text-primary transition-colors"><ChevronUp className="w-4 h-4" /></button>
-                        <button onClick={() => handleMoveCategory(cat.id, 'down')} className="p-1 text-gray-300 hover:text-primary transition-colors"><ChevronDown className="w-4 h-4" /></button>
+                        <button onClick={() => handleMoveCategory(cat.id, 'up')} className="p-1 text-blue-700 hover:text-primary transition-colors"><ChevronUp className="w-4 h-4" /></button>
+                        <button onClick={() => handleMoveCategory(cat.id, 'down')} className="p-1 text-blue-700 hover:text-primary transition-colors"><ChevronDown className="w-4 h-4" /></button>
                      </div>
                      <button onClick={() => setEditingCategory(cat)} className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"><Edit className="w-4 h-4" /></button>
                      <button onClick={() => handleDeleteCategory(cat.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
@@ -1275,7 +2066,7 @@ export default function AdminPanel() {
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-4 w-full md:w-auto">
               <div className="relative flex-1 md:w-80">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-500" />
                 <input 
                   type="text" 
                   placeholder="Поиск по товарам..." 
@@ -1287,7 +2078,7 @@ export default function AdminPanel() {
               {selectedProductIds.length > 0 && (
                 <button 
                   onClick={handleBulkDeleteProducts}
-                  className="px-4 py-2 bg-red-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-red-700 transition-all flex items-center gap-2"
+                  className="px-4 py-2 bg-red-600 text-white rounded-xl font-black uppercase text-[10px] tracking-wider shadow-lg hover:bg-red-700 transition-all flex items-center gap-2"
                 >
                   <Trash2 className="w-4 h-4" /> Удалить ({selectedProductIds.length})
                 </button>
@@ -1296,13 +2087,13 @@ export default function AdminPanel() {
             <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto no-scrollbar">
               <button 
                 onClick={() => setActiveTab('ai-import')}
-                className="px-4 py-3 bg-purple-50 text-purple-600 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-purple-600 hover:text-white transition-all flex items-center gap-2 whitespace-nowrap"
+                className="px-4 py-3 bg-purple-50 text-purple-600 rounded-xl font-black uppercase text-[10px] tracking-wider hover:bg-purple-600 hover:text-white transition-all flex items-center gap-2 whitespace-nowrap"
               >
                 <Globe className="w-4 h-4" /> AI Импорт
               </button>
               <button 
                 onClick={() => setEditingProduct({ name: { ru: '', uz: '' }, description: { ru: '', uz: '' }, price: 0, image: '', categoryId: categories[0]?.id || '', code: '' })} 
-                className="px-4 py-3 bg-primary text-white rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-blue-700 transition-all flex items-center gap-2 whitespace-nowrap"
+                className="px-4 py-3 bg-primary text-white rounded-xl font-black uppercase text-[10px] tracking-wider shadow-lg hover:bg-blue-700 transition-all flex items-center gap-2 whitespace-nowrap"
               >
                 <Plus className="w-4 h-4" /> {language === 'ru' ? 'Новый товар' : 'Yangi mahsulot'}
               </button>
@@ -1329,12 +2120,12 @@ export default function AdminPanel() {
                   >
                     <div className="flex items-center gap-4">
                       <img src={cat.image || undefined} className="w-10 h-10 rounded-lg object-cover" />
-                      <h4 className="font-black text-gray-900 uppercase tracking-tight">{cat.name?.ru || cat.name?.uz}</h4>
-                      <span className="bg-gray-100 px-2 py-0.5 rounded-full text-[10px] font-black text-gray-400">{catProducts.length}</span>
+                      <h4 className="font-black text-blue-950 uppercase tracking-tight">{cat.name?.ru || cat.name?.uz}</h4>
+                      <span className="bg-gray-100 px-2 py-0.5 rounded-full text-[10px] font-black text-blue-500">{catProducts.length}</span>
                     </div>
                     <div className="flex items-center gap-4">
                       <button onClick={(e) => { e.stopPropagation(); handleAddProduct(cat.id); }} className="text-primary font-black text-[10px] uppercase hover:underline">+ Добавить</button>
-                      {isExpanded ? <ChevronUp className="w-5 h-5 text-gray-300" /> : <ChevronDown className="w-5 h-5 text-gray-300" />}
+                      {isExpanded ? <ChevronUp className="w-5 h-5 text-blue-700" /> : <ChevronDown className="w-5 h-5 text-blue-700" />}
                     </div>
                   </div>
                   
@@ -1352,9 +2143,9 @@ export default function AdminPanel() {
                                   setSelectedProductIds(prev => prev.filter(id => !ids.includes(id)));
                                 }
                               }} checked={catProducts.length > 0 && catProducts.every(p => selectedProductIds.includes(p.id))} /></th>
-                              <th className="p-2 text-[10px] font-black uppercase text-gray-400">Товар</th>
-                              <th className="p-2 text-[10px] font-black uppercase text-gray-400">Цена</th>
-                              <th className="p-2 text-right text-[10px] font-black uppercase text-gray-400">Действие</th>
+                              <th className="p-2 text-[10px] font-black uppercase text-blue-500">Товар</th>
+                              <th className="p-2 text-[10px] font-black uppercase text-blue-500">Цена</th>
+                              <th className="p-2 text-right text-[10px] font-black uppercase text-blue-500">Действие</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-50">
@@ -1374,12 +2165,12 @@ export default function AdminPanel() {
                                   <div className="flex items-center gap-3">
                                     <img src={prod.image || undefined} className="w-8 h-8 rounded object-cover" />
                                     <div>
-                                      <p className="text-xs font-black text-gray-900 line-clamp-1">{prod.name?.ru || prod.name?.uz}</p>
-                                      <p className="text-[9px] text-gray-400 uppercase tracking-widest">{prod.name?.uz}</p>
+                                      <p className="text-xs font-black text-blue-950 line-clamp-1">{prod.name?.ru || prod.name?.uz}</p>
+                                      <p className="text-[9px] text-blue-500 uppercase tracking-wider">{prod.name?.uz}</p>
                                     </div>
                                   </div>
                                 </td>
-                                <td className="p-2 text-xs font-black text-gray-900">
+                                <td className="p-2 text-xs font-black text-blue-950">
                                   {prod.price?.toLocaleString()} UZS
                                 </td>
                                 <td className="p-2 text-right">
@@ -1405,13 +2196,13 @@ export default function AdminPanel() {
       {activeTab === 'ai-import' && (
         <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
           <div className="max-w-3xl mx-auto">
-            <h3 className="text-2xl font-black text-gray-900 mb-2 uppercase tracking-tight">AI Импорт товаров</h3>
-            <p className="text-gray-500 mb-8 font-medium">Загрузите PDF или изображение с перечнем товаров, и нейросеть автоматически распознает названия, цены и описания.</p>
+            <h3 className="text-2xl font-black text-blue-950 mb-2 uppercase tracking-tight">AI Импорт товаров</h3>
+            <p className="text-blue-400 mb-8 font-medium">Загрузите PDF или изображение с перечнем товаров, и нейросеть автоматически распознает названия, цены и описания.</p>
             
             <div className="space-y-6 bg-gray-50 p-6 rounded-2xl border-2 border-dashed border-gray-200">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Назначение</label>
+                  <label className="block text-xs font-black uppercase tracking-[0.1em] text-blue-500 mb-2">Назначение</label>
                   <select 
                     value={aiCategoryId}
                     onChange={(e) => setAiCategoryId(e.target.value)}
@@ -1421,7 +2212,15 @@ export default function AdminPanel() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-black uppercase tracking-widest text-gray-400 mb-2">Файл (PDF, PNG, JPG)</label>
+                  <label className="block text-xs font-black uppercase tracking-[0.1em] text-blue-500 mb-2">Теги (через запятую)</label>
+                  <input 
+                    type="text" 
+                    placeholder="тег1, тег2, тег3"
+                    value={aiTags} 
+                    onChange={e => setAiTags(e.target.value)}
+                    className="w-full px-5 py-4 bg-gray-50 rounded-2xl border border-gray-100 font-bold text-sm mb-4"
+                  />
+                  <label className="block text-xs font-black uppercase tracking-[0.1em] text-blue-500 mb-2">Файл (PDF, PNG, JPG)</label>
                   <input 
                     type="file" 
                     accept="image/*,application/pdf"
@@ -1490,9 +2289,9 @@ export default function AdminPanel() {
                   }
                 }}
                 disabled={aiIsProcessing || !aiFile}
-                className="w-full py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-widest shadow-lg hover:shadow-2xl transition-all disabled:opacity-50 flex items-center justify-center gap-3"
+                className="w-full py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-wider shadow-lg hover:shadow-2xl transition-all disabled:opacity-50 flex items-center justify-center gap-3"
               >
-                {aiIsProcessing ? <Loader className="w-6 h-6 animate-spin text-white" /> : <FileText className="w-6 h-6" />}
+                {aiIsProcessing ? <Loader className="w-6 h-6 animate-spin text-blue-900" /> : <FileText className="w-6 h-6" />}
                 {aiIsProcessing ? 'Обработка...' : 'Распознать товары'}
               </button>
             </div>
@@ -1565,7 +2364,7 @@ export default function AdminPanel() {
                                   price: Number(res.price) || 0,
                                   categoryId: finalCategoryId,
                                   image: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&q=80&w=800',
-                                  tags: [],
+                                  tags: aiTags.split(',').map(t => t.trim()).filter(t => t),
                                   order: products.filter(p => p.categoryId === finalCategoryId).length + addedCount
                                });
                                addedCount++;
@@ -1581,7 +2380,7 @@ export default function AdminPanel() {
                         }
                       );
                     }}
-                    className="px-6 py-3 bg-green-600 text-white rounded-xl font-black uppercase tracking-widest text-xs shadow-lg hover:bg-green-700 transition-all"
+                    className="px-6 py-3 bg-green-600 text-white rounded-xl font-black uppercase tracking-wider text-xs shadow-lg hover:bg-green-700 transition-all"
                   >
                     Добавить все на сайт
                   </button>
@@ -1589,11 +2388,11 @@ export default function AdminPanel() {
                 {aiResults.map((res, i) => (
                   <div key={i} className="p-4 bg-white border border-gray-200 rounded-xl flex justify-between items-center shadow-sm">
                     <div className="flex-1">
-                      <h4 className="font-black text-gray-900">{res.name}</h4>
+                      <h4 className="font-black text-blue-950">{res.name}</h4>
                       <p className="text-primary font-bold">{res.price.toLocaleString()} UZS</p>
-                      <p className="text-xs text-gray-400 mt-1 line-clamp-1">{res.description}</p>
+                      <p className="text-xs text-blue-500 mt-1 line-clamp-1">{res.description}</p>
                     </div>
-                    <button onClick={() => setAiResults(aiResults.filter((_, idx) => idx !== i))} className="p-2 text-gray-300 hover:text-red-500">
+                    <button onClick={() => setAiResults(aiResults.filter((_, idx) => idx !== i))} className="p-2 text-blue-700 hover:text-red-500">
                       <Trash2 className="w-5 h-5" />
                     </button>
                   </div>
@@ -1607,16 +2406,16 @@ export default function AdminPanel() {
       {activeTab === 'orders' && (
         <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
           <div className="flex justify-between items-center mb-8">
-            <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tight">Управление заказами</h3>
+            <h3 className="text-2xl font-black text-blue-950 uppercase tracking-tight">Управление заказами</h3>
             <div className="flex gap-2">
                <div className="flex bg-gray-100 rounded-xl p-1 items-center px-3">
-                  <Search className="w-4 h-4 text-gray-400 mr-2" />
+                  <Search className="w-4 h-4 text-blue-500 mr-2" />
                   <input 
                     type="text" 
                     placeholder="Поиск по коду..." 
                     value={orderSearchQuery}
                     onChange={e => setOrderSearchQuery(e.target.value)}
-                    className="bg-transparent border-none outline-none text-xs font-black uppercase tracking-widest w-40 placeholder:text-gray-300"
+                    className="bg-transparent border-none outline-none text-xs font-black uppercase tracking-wider w-40 placeholder:text-blue-700"
                   />
                </div>
                <button 
@@ -1649,7 +2448,7 @@ export default function AdminPanel() {
                     }
                    )
                  }}
-                 className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-xl border border-red-100 hover:bg-red-600 hover:text-white transition-all text-[10px] font-black uppercase tracking-widest shrink-0 ml-2"
+                 className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-xl border border-red-100 hover:bg-red-600 hover:text-white transition-all text-[10px] font-black uppercase tracking-wider shrink-0 ml-2"
                >
                  <Trash2 className="w-4 h-4" />
                  Очистить все
@@ -1670,7 +2469,7 @@ export default function AdminPanel() {
                   <div className="flex items-center gap-4">
                     <div className="p-2 bg-gray-50 rounded-xl border border-gray-100 flex-shrink-0">
                        <CheckCircle className={`w-5 h-5 ${
-                         order.status === 'need_to_pay' ? 'text-gray-400' :
+                         order.status === 'need_to_pay' ? 'text-blue-500' :
                          order.status === 'pending' ? 'text-yellow-500' :
                          order.status === 'confirmed' ? 'text-blue-500' :
                          'text-green-500'
@@ -1678,7 +2477,7 @@ export default function AdminPanel() {
                     </div>
                     <div>
                       <div className="flex items-center gap-3">
-                        <span className="text-lg font-black tracking-tighter text-gray-900 uppercase">{order.code}</span>
+                        <span className="text-lg font-black tracking-tighter text-blue-950 uppercase">{order.code}</span>
                         <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
                           order.status === 'need_to_pay' ? 'bg-gray-200 text-gray-600' :
                           order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
@@ -1689,19 +2488,19 @@ export default function AdminPanel() {
                           {order.status}
                         </span>
                       </div>
-                      <p className="text-[10px] text-gray-400 font-bold uppercase">{new Date(order.createdAt).toLocaleDateString()} {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                      <p className="text-[10px] text-blue-500 font-bold uppercase">{new Date(order.createdAt).toLocaleDateString()} {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                     </div>
                   </div>
                   
                   <div className="flex items-center gap-6">
                     <div className="text-right hidden sm:block">
-                      <p className="text-sm font-black text-gray-900 uppercase tracking-widest">{order.userName}</p>
-                      <p className="text-[10px] text-gray-400">{order.userPhone}</p>
+                      <p className="text-sm font-black text-blue-950 uppercase tracking-wider">{order.userName}</p>
+                      <p className="text-[10px] text-blue-500">{order.userPhone}</p>
                     </div>
                     <div className="text-right min-w-[120px]">
                       <p className="text-lg font-black text-primary tracking-tight">{order.total?.toLocaleString()} UZS</p>
                     </div>
-                    <div className="flex items-center justify-center p-2 rounded-lg bg-gray-50 text-gray-400 group-hover:text-primary transition-colors">
+                    <div className="flex items-center justify-center p-2 rounded-lg bg-gray-50 text-blue-500 group-hover:text-primary transition-colors">
                        {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                     </div>
                   </div>
@@ -1718,45 +2517,45 @@ export default function AdminPanel() {
                       <div className="p-6 pt-0 border-t border-gray-50 grid grid-cols-1 lg:grid-cols-2 gap-8 mt-6">
                          <div className="space-y-6">
                             <div>
-                              <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4 flex items-center gap-2">
+                              <h4 className="text-[10px] font-black uppercase tracking-wider text-blue-500 mb-4 flex items-center gap-2">
                                  <ShoppingCart className="w-3.5 h-3.5" /> Состав заказа
                               </h4>
                               <div className="space-y-3">
                                 {order.items?.map((item: any, idx: number) => (
                                   <div key={idx} className="flex gap-3 items-center p-3 bg-gray-50 rounded-xl border border-gray-100 shadow-sm relative group">
-                                     <img src={item.image} alt="" className="w-10 h-10 rounded-lg object-cover border" />
+                                     <img src={item.image || undefined} alt="" className="w-10 h-10 rounded-lg object-cover border" />
                                      <div className="flex-1 min-w-0">
-                                       <p className="font-black text-xs text-gray-900 truncate">
+                                       <p className="font-black text-xs text-blue-950 truncate">
                                          {typeof item.name === 'object' ? (item.name[language] || item.name['ru'] || 'Товар') : (item.name || 'Товар')}
                                        </p>
                                      </div>
                                      <div className="text-right">
-                                       <p className="text-[10px] font-black text-gray-400">{item.quantity} шт.</p>
-                                       <p className="text-xs font-black text-gray-900">{(item.price * item.quantity).toLocaleString()} UZS</p>
+                                       <p className="text-[10px] font-black text-blue-500">{item.quantity} шт.</p>
+                                       <p className="text-xs font-black text-blue-950">{(item.price * item.quantity).toLocaleString()} UZS</p>
                                      </div>
                                   </div>
                                 ))}
                                 
                                 {order.promocode && (
                                   <div className="p-2 bg-green-50 border border-green-100 rounded-xl flex justify-between items-center px-4">
-                                    <span className="text-[9px] font-black text-green-700 uppercase tracking-widest">Промокод</span>
+                                    <span className="text-[9px] font-black text-green-700 uppercase tracking-wider">Промокод</span>
                                     <span className="text-xs font-black text-green-700 font-mono tracking-tighter">{order.promocode}</span>
                                   </div>
                                 )}
                                 
-                                <div className="pt-2 flex justify-between text-[10px] font-black text-gray-400 divide-x divide-gray-100 bg-gray-50 rounded-xl p-3">
+                                <div className="pt-2 flex justify-between text-[10px] font-black text-blue-500 divide-x divide-gray-100 bg-gray-50 rounded-xl p-3">
                                   <div className="flex-1 px-2 text-center">
-                                     <p className="uppercase tracking-widest mb-1 text-[8px]">Подытог</p>
+                                     <p className="uppercase tracking-wider mb-1 text-[8px]">Подытог</p>
                                      <p className="text-gray-700">{order.subtotal?.toLocaleString()} UZS</p>
                                   </div>
                                   {order.discount > 0 && (
                                   <div className="flex-1 px-2 text-center">
-                                     <p className="uppercase tracking-widest mb-1 text-[8px] text-green-600">Скидка</p>
+                                     <p className="uppercase tracking-wider mb-1 text-[8px] text-green-600">Скидка</p>
                                      <p className="text-green-700">-{order.discount}%</p>
                                   </div>
                                   )}
                                   <div className="flex-1 px-2 text-center">
-                                     <p className="uppercase tracking-widest mb-1 text-[8px] text-primary">Итого</p>
+                                     <p className="uppercase tracking-wider mb-1 text-[8px] text-primary">Итого</p>
                                      <p className="text-primary text-xs">{order.total?.toLocaleString()} UZS</p>
                                   </div>
                                 </div>
@@ -1764,26 +2563,47 @@ export default function AdminPanel() {
                             </div>
                             
                             <div className="p-4 rounded-xl bg-blue-50/50 border border-blue-100">
-                               <h4 className="text-[10px] font-black uppercase tracking-widest text-blue-400 mb-3 flex items-center gap-2">
+                               <h4 className="text-[10px] font-black uppercase tracking-wider text-blue-400 mb-3 flex items-center gap-2">
                                   <User className="w-3.5 h-3.5" /> Данные клиента
                                </h4>
                                <div className="grid grid-cols-2 gap-4">
                                   <div>
-                                     <p className="text-[8px] font-black uppercase text-gray-400">Имя</p>
+                                     <p className="text-[8px] font-black uppercase text-blue-500">Имя</p>
                                      <p className="font-bold text-sm text-blue-900">{order.userName}</p>
                                   </div>
                                   <div>
-                                     <p className="text-[8px] font-black uppercase text-gray-400">Телефон</p>
+                                     <p className="text-[8px] font-black uppercase text-blue-500">Телефон</p>
                                      <p className="text-sm font-bold text-blue-700">{order.userPhone}</p>
                                   </div>
                                   <div className="col-span-2">
-                                     <p className="text-[8px] font-black uppercase text-gray-400">Telegram/Insta</p>
+                                     <p className="text-[8px] font-black uppercase text-blue-500">Telegram/Insta</p>
                                      <p className="text-sm font-bold text-blue-700">{order.userContact}</p>
                                   </div>
                                   {order.address && order.deliveryMethod === 'delivery' && (
                                     <div className="col-span-2 border-t border-blue-100 pt-2 mt-2">
-                                       <p className="text-[8px] font-black uppercase text-gray-400">Адрес доставки</p>
-                                       <p className="text-sm font-bold text-blue-900 leading-tight">{order.address}</p>
+                                       <p className="text-[8px] font-black uppercase text-blue-500">Адрес доставки</p>
+                                       {typeof order.address === 'object' ? (
+                                         <div className="space-y-1 mt-1">
+                                           <p className="text-sm font-bold text-blue-900 leading-tight">
+                                             {order.address.region}, {order.address.district}
+                                           </p>
+                                           <p className="text-xs font-bold text-blue-700">
+                                             {order.address.street} {order.address.house}
+                                           </p>
+                                           {order.address.coords && (
+                                             <a 
+                                               href={`https://www.google.com/maps?q=${order.address.coords.lat},${order.address.coords.lng}`}
+                                               target="_blank"
+                                               rel="noopener noreferrer"
+                                               className="mt-2 flex items-center gap-2 px-3 py-1.5 bg-primary text-white rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-blue-700 transition-all w-fit font-bold"
+                                             >
+                                               <MapPin className="w-3.5 h-3.5" /> Посмотреть на карте
+                                             </a>
+                                           )}
+                                         </div>
+                                       ) : (
+                                         <p className="text-sm font-bold text-blue-900 leading-tight">{order.address}</p>
+                                       )}
                                     </div>
                                   )}
                                </div>
@@ -1791,14 +2611,14 @@ export default function AdminPanel() {
 
                             {order.paymentScreenshot && (
                               <div className="p-4 rounded-xl bg-gray-50 border border-gray-100">
-                                 <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3">Чек об оплате</h4>
+                                 <h4 className="text-[10px] font-black uppercase tracking-wider text-blue-500 mb-3">Чек об оплате</h4>
                                  <a href={order.paymentScreenshot} target="_blank" rel="noopener noreferrer" className="block relative aspect-video rounded-xl overflow-hidden border border-gray-200 group">
-                                    <img src={order.paymentScreenshot} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                                    <img src={order.paymentScreenshot || undefined} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                                     <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                       <span className="text-[10px] font-black text-white uppercase tracking-widest bg-black/40 px-3 py-1 rounded-full">Открыть фото</span>
+                                       <span className="text-[10px] font-black text-white uppercase tracking-wider bg-black/40 px-3 py-1 rounded-full">Открыть фото</span>
                                     </div>
                                  </a>
-                                 <p className="text-[9px] text-gray-400 mt-2 font-bold uppercase tracking-wider text-center">{order.paymentMethod || 'Не указан'}</p>
+                                 <p className="text-[9px] text-blue-500 mt-2 font-bold uppercase tracking-wider text-center">{order.paymentMethod || 'Не указан'}</p>
                                  {(order.status === 'pending' || order.status === 'need_to_pay') && (!activeOrderAction || activeOrderAction.id !== order.id) ? (
                                    <div className="mt-4 flex gap-2">
                                        <button 
@@ -1825,7 +2645,7 @@ export default function AdminPanel() {
                                     >
                                        {activeOrderAction.type === 'confirm' ? (
                                           <>
-                                             <p className="text-[10px] font-black uppercase text-gray-400 text-center">Выберите статус готовности</p>
+                                             <p className="text-[10px] font-black uppercase text-blue-500 text-center">Выберите статус готовности</p>
                                              <div className="grid grid-cols-1 gap-2">
                                                 <button 
                                                   onClick={async () => {
@@ -1835,7 +2655,7 @@ export default function AdminPanel() {
                                                      });
                                                      setActiveOrderAction(null);
                                                   }}
-                                                  className="py-2 bg-green-50 text-green-700 rounded-lg border border-green-100 text-[10px] font-black uppercase tracking-widest hover:bg-green-100"
+                                                  className="py-2 bg-green-50 text-green-700 rounded-lg border border-green-100 text-[10px] font-black uppercase tracking-wider hover:bg-green-100"
                                                 >
                                                   Готов к выдаче
                                                 </button>
@@ -1844,13 +2664,13 @@ export default function AdminPanel() {
                                                      setLocalReadinessValue(order.readinessTime?.toString().split(' ')[0] || '');
                                                      setActiveOrderAction({ id: order.id, type: 'confirm_time' as any });
                                                   }}
-                                                  className="py-2 bg-blue-50 text-blue-700 rounded-lg border border-blue-100 text-[10px] font-black uppercase tracking-widest hover:bg-blue-100"
+                                                  className="py-2 bg-blue-50 text-blue-700 rounded-lg border border-blue-100 text-[10px] font-black uppercase tracking-wider hover:bg-blue-100"
                                                 >
                                                   Указать время
                                                 </button>
                                                 <button 
                                                   onClick={() => setActiveOrderAction(null)}
-                                                  className="py-1 text-[8px] font-black uppercase text-gray-400 hover:text-gray-600 text-center"
+                                                  className="py-1 text-[8px] font-black uppercase text-blue-500 hover:text-gray-600 text-center"
                                                 >
                                                   Назад
                                                 </button>
@@ -1858,7 +2678,7 @@ export default function AdminPanel() {
                                           </>
                                        ) : activeOrderAction.type === 'reject' ? (
                                           <div className="space-y-2">
-                                             <p className="text-[10px] font-black uppercase text-gray-400">Причина отклонения</p>
+                                             <p className="text-[10px] font-black uppercase text-blue-500">Причина отклонения</p>
                                              <textarea 
                                                className="w-full p-2 border border-gray-200 rounded-lg text-xs font-bold"
                                                placeholder="Например: Неверный чек / Оплата не поступила"
@@ -1890,7 +2710,7 @@ export default function AdminPanel() {
                                            <div className="space-y-4">
                                               <div className="grid grid-cols-2 gap-2">
                                                  <div>
-                                                   <label className="block text-[8px] font-black uppercase text-gray-400 mb-1">Срок</label>
+                                                   <label className="block text-[8px] font-black uppercase text-blue-500 mb-1">Срок</label>
                                                    <input 
                                                      type="text"
                                                      placeholder="Число"
@@ -1900,7 +2720,7 @@ export default function AdminPanel() {
                                                    />
                                                  </div>
                                                  <div>
-                                                   <label className="block text-[8px] font-black uppercase text-gray-400 mb-1">Ед. изм.</label>
+                                                   <label className="block text-[8px] font-black uppercase text-blue-500 mb-1">Ед. изм.</label>
                                                    <select 
                                                      className="w-full p-2 border border-gray-200 rounded-lg text-xs font-bold"
                                                      onChange={async (e) => {
@@ -1949,13 +2769,13 @@ export default function AdminPanel() {
 
                          <div className="space-y-6">
                             <div className="bg-white rounded-xl border border-gray-100 p-5 shadow-sm space-y-4">
-                              <h4 className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2 flex items-center gap-2">
+                              <h4 className="text-[10px] font-black uppercase tracking-wider text-blue-500 mb-2 flex items-center gap-2">
                                 <Edit className="w-3.5 h-3.5" /> Управление
                               </h4>
                               
                               <div className="grid grid-cols-1 gap-4">
                                 <div>
-                                  <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 ml-1">Статус заказа</label>
+                                  <label className="block text-[10px] font-black uppercase tracking-wider text-blue-500 mb-1 ml-1">Статус заказа</label>
                                   <select 
                                     value={order.status}
                                     onClick={e => e.stopPropagation()}
@@ -1974,7 +2794,7 @@ export default function AdminPanel() {
                                 {order.status === 'confirmed' && (
                                    <div className="grid grid-cols-2 gap-2 p-3 bg-gray-50 rounded-xl border border-gray-100">
                                      <div>
-                                       <label className="block text-[8px] font-black uppercase tracking-widest text-gray-400 mb-1 ml-1">Время</label>
+                                       <label className="block text-[8px] font-black uppercase tracking-wider text-blue-500 mb-1 ml-1">Время</label>
                                        <input 
                                          type="text" 
                                          placeholder="6"
@@ -1989,7 +2809,7 @@ export default function AdminPanel() {
                                        />
                                      </div>
                                      <div>
-                                       <label className="block text-[8px] font-black uppercase tracking-widest text-gray-400 mb-1 ml-1">Ед. изм.</label>
+                                       <label className="block text-[8px] font-black uppercase tracking-wider text-blue-500 mb-1 ml-1">Ед. изм.</label>
                                        <select 
                                          value={order.readinessTime?.toString().split(' ')[1] || 'час'}
                                          onClick={e => e.stopPropagation()}
@@ -2008,7 +2828,7 @@ export default function AdminPanel() {
                                  )}
                                  
                                  <div className="pt-2">
-                                   <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 ml-1">Адрес доставки</label>
+                                   <label className="block text-[10px] font-black uppercase tracking-wider text-blue-500 mb-1 ml-1">Адрес доставки</label>
                                    <textarea 
                                      value={order.address || ''}
                                      onClick={e => e.stopPropagation()}
@@ -2019,7 +2839,7 @@ export default function AdminPanel() {
                                  </div>
                                  
                                  <div className="pt-2">
-                                   <label className="block text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1 ml-1">Комментарий админа</label>
+                                   <label className="block text-[10px] font-black uppercase tracking-wider text-blue-500 mb-1 ml-1">Комментарий админа</label>
                                    <textarea 
                                      value={order.siteComment || ''}
                                      onClick={e => e.stopPropagation()}
@@ -2063,13 +2883,13 @@ export default function AdminPanel() {
                  <div className={`w-16 h-16 ${confirmData.title.toUpperCase().includes('ИМПОРТ') || confirmData.title.toUpperCase().includes('ДОБАВЛЕНИЕ') ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'} rounded-2xl flex items-center justify-center mb-6 mx-auto`}>
                     {confirmData.title.toUpperCase().includes('ИМПОРТ') || confirmData.title.toUpperCase().includes('ДОБАВЛЕНИЕ') ? <CheckCircle className="w-8 h-8" /> : <Trash2 className="w-8 h-8" />}
                  </div>
-                 <h3 className="text-2xl font-black text-gray-900 text-center mb-2 uppercase tracking-tight">{confirmData.title}</h3>
-                 <p className="text-gray-500 text-center font-bold mb-8">{confirmData.message}</p>
+                 <h3 className="text-2xl font-black text-blue-950 text-center mb-2 uppercase tracking-wider">{confirmData.title}</h3>
+                 <p className="text-blue-400 text-center font-bold mb-8">{confirmData.message}</p>
                  
                  <div className="grid grid-cols-2 gap-4">
                     <button 
                       onClick={() => setIsConfirmOpen(false)}
-                      className="py-4 bg-gray-100 text-gray-600 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-gray-200 transition-colors"
+                      className="py-4 bg-gray-100 text-gray-600 rounded-2xl font-black uppercase tracking-wider text-xs hover:bg-gray-200 transition-colors"
                     >
                       Отмена
                     </button>
@@ -2079,7 +2899,7 @@ export default function AdminPanel() {
                         setIsConfirmOpen(false);
                         setTimeout(callback, 0);
                       }}
-                      className={`py-4 ${confirmData.title.toUpperCase().includes('ИМПОРТ') || confirmData.title.toUpperCase().includes('ДОБАВЛЕНИЕ') ? 'bg-green-600 shadow-green-200 hover:bg-green-700' : 'bg-red-600 shadow-red-200 hover:bg-red-700'} text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg transition-all hover:-translate-y-0.5 active:translate-y-0`}
+                      className={`py-4 ${confirmData.title.toUpperCase().includes('ИМПОРТ') || confirmData.title.toUpperCase().includes('ДОБАВЛЕНИЕ') ? 'bg-green-600 shadow-green-200 hover:bg-green-700' : 'bg-red-600 shadow-red-200 hover:bg-red-700'} text-white rounded-2xl font-black uppercase tracking-wider text-xs shadow-lg transition-all hover:-translate-y-0.5 active:translate-y-0`}
                     >
                       {confirmData.title.toUpperCase().includes('ИМПОРТ') || confirmData.title.toUpperCase().includes('ДОБАВЛЕНИЕ') ? 'Да, добавить' : 'Да, удалить'}
                     </button>

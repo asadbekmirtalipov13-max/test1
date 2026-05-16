@@ -30,7 +30,7 @@ export default function Hero() {
   if (!heroSlides || heroSlides.length === 0) return null;
 
   return (
-    <div className="relative bg-gray-900 text-white overflow-hidden h-[400px] md:h-[500px] lg:h-[600px] group">
+    <div className="relative bg-blue-50 text-blue-900 overflow-hidden h-[400px] md:h-[500px] lg:h-[600px] group">
       <AnimatePresence initial={false}>
         <motion.div
           key={currentSlide}
@@ -41,15 +41,15 @@ export default function Hero() {
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: `url(${heroSlides[currentSlide].imageUrl || 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&q=80'})` }}
         >
-          <div className="absolute inset-0 bg-black/50"></div>
+          <div className="absolute inset-0 bg-white/70 backdrop-blur-[2px]"></div>
           
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center px-4 z-10 w-full max-w-5xl mx-auto">
-               <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tight mb-4 drop-shadow-lg text-white">
+               <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tight mb-4 drop-shadow-sm text-blue-900">
                  {heroSlides[currentSlide].title?.[language] || (language === 'ru' ? 'Мир одинаковый для всех' : 'Dunyo hamma uchun bir xil')}
                </h1>
                {heroSlides[currentSlide].text?.[language] && (
-                 <p className="text-lg md:text-xl text-gray-200 mb-8 max-w-3xl mx-auto">
+                 <p className="text-lg md:text-xl text-blue-800 mb-8 max-w-3xl mx-auto font-medium">
                    {heroSlides[currentSlide].text[language]}
                  </p>
                )}
@@ -75,13 +75,13 @@ export default function Hero() {
         <>
           <button 
             onClick={prevSlide}
-            className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-black/30 hover:bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all z-20 backdrop-blur-sm"
+            className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-white/50 hover:bg-white text-blue-900 rounded-full opacity-0 group-hover:opacity-100 transition-all z-20 backdrop-blur-sm shadow-sm border border-blue-100"
           >
             <ChevronLeft className="w-6 h-6" />
           </button>
           <button 
             onClick={nextSlide}
-            className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-black/30 hover:bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all z-20 backdrop-blur-sm"
+            className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-white/50 hover:bg-white text-blue-900 rounded-full opacity-0 group-hover:opacity-100 transition-all z-20 backdrop-blur-sm shadow-sm border border-blue-100"
           >
             <ChevronRight className="w-6 h-6" />
           </button>
@@ -92,7 +92,7 @@ export default function Hero() {
               <button
                 key={idx}
                 onClick={() => setCurrentSlide(idx)}
-                className={`w-3 h-3 rounded-full transition-all ${idx === currentSlide ? 'bg-white scale-110' : 'bg-white/40 hover:bg-white/60'}`}
+                className={`w-3 h-3 rounded-full transition-all border border-blue-200 ${idx === currentSlide ? 'bg-blue-600 scale-110' : 'bg-transparent hover:bg-blue-100'}`}
               />
             ))}
           </div>

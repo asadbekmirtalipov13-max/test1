@@ -52,8 +52,25 @@
         "discount": { "type": "number" },
         "promocode": { "type": "string" },
         "status": { "type": "string" },
+        "deliveryType": { "type": "string", "enum": ["pickup", "delivery"] },
+        "region": { "type": "string" },
+        "district": { "type": "string" },
+        "address": { "type": "string" },
+        "location": { "type": "object" },
         "paymentScreenshot": { "type": "string" },
         "createdAt": { "type": "string" }
+      }
+    },
+    "HelpRequest": {
+      "title": "HelpRequest",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "situation": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "status": { "type": "string", "enum": ["new", "processed"] }
       }
     },
     "Promocode": {
@@ -96,6 +113,10 @@
     "/promocodes/{promoCode}": {
       "schema": "Promocode",
       "description": "Discount codes"
+    },
+    "/help_requests/{requestId}": {
+      "schema": "HelpRequest",
+      "description": "Customer consultation requests"
     },
     "/settings/{docId}": {
       "schema": "Settings",

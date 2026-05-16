@@ -12,16 +12,16 @@ export default function Footer() {
       {/* Banner / Footer Image placed right above footer */}
       {(bannerUrl || footerImageUrl) && (
         <div className="w-full bg-gray-100 flex justify-center py-4">
-          <img src={footerImageUrl || bannerUrl} alt="Banner" className="w-full max-w-7xl h-auto object-contain" />
+          <img src={footerImageUrl || bannerUrl || undefined} alt="Banner" className="w-full max-w-7xl h-auto object-contain" />
         </div>
       )}
 
-      <footer className="bg-white text-gray-900 pt-20 pb-12 border-t border-gray-100" id="contact">
+      <footer className="bg-white text-blue-950 pt-20 pb-12 border-t border-gray-100" id="contact">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
             <div>
               <h3 className="text-2xl font-black text-primary mb-6 uppercase tracking-tight">{siteName}</h3>
-              <p className="text-gray-500 mb-8 leading-relaxed">
+              <p className="text-blue-400 mb-8 leading-relaxed">
                 {siteDescription?.[language] || siteDescription?.ru}
               </p>
               <div className="flex flex-wrap gap-4">
@@ -46,7 +46,7 @@ export default function Footer() {
             </div>
             
             <div>
-              <h4 className="text-lg font-black text-gray-900 mb-8 border-b-2 border-primary/20 pb-2 inline-block uppercase tracking-wider">{t('nav.contacts')}</h4>
+              <h4 className="text-lg font-black text-blue-950 mb-8 border-b-2 border-primary/20 pb-2 inline-block uppercase tracking-wider">{t('nav.contacts')}</h4>
               <ul className="space-y-5">
                 <li className="flex items-start gap-4">
                   <div className="p-2.5 rounded-xl bg-gray-50 text-primary border border-gray-100">
@@ -59,8 +59,8 @@ export default function Footer() {
                     <Phone className="w-5 h-5 flex-shrink-0" />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <span className="text-gray-400 text-[10px] font-black uppercase tracking-widest">{t('contact.phone')}</span>
-                    <a href={`tel:${contacts?.phone?.replace(/[^0-9+]/g, '')}`} className="text-gray-900 font-bold hover:text-primary transition-colors text-lg">{contacts?.phone}</a>
+                    <span className="text-blue-500 text-[10px] font-black uppercase tracking-wider">{t('contact.phone')}</span>
+                    <a href={`tel:${contacts?.phone?.replace(/[^0-9+]/g, '')}`} className="text-blue-950 font-bold hover:text-primary transition-colors text-lg">{contacts?.phone}</a>
                   </div>
                 </li>
                 <li className="flex items-start gap-4">
@@ -68,26 +68,26 @@ export default function Footer() {
                     <Mail className="w-5 h-5 flex-shrink-0" />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <span className="text-gray-400 text-[10px] font-black uppercase tracking-widest">Email</span>
-                    <a href={`mailto:${contacts?.email}`} className="text-gray-900 font-bold hover:text-primary transition-colors">{contacts?.email}</a>
+                    <span className="text-blue-500 text-[10px] font-black uppercase tracking-wider">Email</span>
+                    <a href={`mailto:${contacts?.email}`} className="text-blue-950 font-bold hover:text-primary transition-colors">{contacts?.email}</a>
                   </div>
                 </li>
               </ul>
             </div>
 
             <div>
-              <h4 className="text-lg font-black text-gray-900 mb-8 border-b-2 border-primary/20 pb-2 inline-block uppercase tracking-wider">{language === 'ru' ? 'Режим работы' : 'Ish vaqti'}</h4>
+              <h4 className="text-lg font-black text-blue-950 mb-8 border-b-2 border-primary/20 pb-2 inline-block uppercase tracking-wider">{language === 'ru' ? 'Режим работы' : 'Ish vaqti'}</h4>
               <div className="p-5 rounded-2xl bg-gray-50 border border-gray-100 italic text-gray-600 font-medium leading-relaxed">
                  {contacts?.workingHours?.[language]}
               </div>
             </div>
             
             <div>
-              <h4 className="text-lg font-black text-gray-900 mb-8 border-b-2 border-primary/20 pb-2 inline-block uppercase tracking-wider">{language === 'ru' ? 'Способы оплаты' : 'To\'lov usullari'}</h4>
+              <h4 className="text-lg font-black text-blue-950 mb-8 border-b-2 border-primary/20 pb-2 inline-block uppercase tracking-wider">{language === 'ru' ? 'Способы оплаты' : 'To\'lov usullari'}</h4>
               <div className="flex flex-wrap gap-3">
                 {paymentMethodsList?.map(pm => (
                   <div key={pm.id} className="p-3 rounded-xl bg-white border border-gray-100 shadow-sm flex items-center gap-2 hover:border-primary transition-colors cursor-default">
-                    <CreditCard className="w-5 h-5 text-gray-400" />
+                    <CreditCard className="w-5 h-5 text-blue-500" />
                     <span className="text-gray-700 text-xs font-black uppercase tracking-wide">{pm.name}</span>
                   </div>
                 ))}
@@ -95,7 +95,7 @@ export default function Footer() {
             </div>
           </div>
           
-          <div className="border-t border-gray-100 pt-10 text-center text-gray-400 text-sm font-medium">
+          <div className="border-t border-gray-100 pt-10 text-center text-blue-500 text-sm font-medium">
             <p>&copy; {new Date().getFullYear()} {siteName}. {t('footer.rights')}.</p>
           </div>
         </div>

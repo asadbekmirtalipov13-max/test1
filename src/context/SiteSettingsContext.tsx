@@ -17,6 +17,9 @@ export interface PaymentMethod {
   btnColor: string;
   btnText: { ru: string; uz: string };
   screenshotRequired?: boolean;
+  type?: 'manual' | 'botfather' | 'redirect';
+  providerToken?: string;
+  redirectUrlTemplate?: string;
 }
 
 export interface HeroSlide {
@@ -56,6 +59,11 @@ interface SiteSettings {
     ru: string;
     uz: string;
   };
+  aboutImage?: string;
+  aboutStats?: {
+    years: number;
+    clients: number;
+  };
   payLaterButtonText?: { ru: string; uz: string };
   paymentMethodsList: PaymentMethod[];
   
@@ -64,12 +72,15 @@ interface SiteSettings {
 
   siteDescription?: { ru: string; uz: string };
   aboutUs?: { ru: string; uz: string };
-  adBlockTitle?: string;
+  adBlockTitle?: { ru: string; uz: string };
   adBlockLink?: string;
   showAdBlock?: boolean;
   adBlockImage?: string;
   
-  loading?: boolean;
+  tgSettings?: {
+    token: string;
+    chatIds: string;
+  };
 }
 
 const defaultSettings: SiteSettings = {
@@ -82,11 +93,15 @@ const defaultSettings: SiteSettings = {
     ru: 'Производство пандусов и металлоконструкций',
     uz: 'Panduslar va metall konstruksiyalar ishlab chiqarish'
   },
+  tgSettings: {
+    token: '',
+    chatIds: ''
+  },
   aboutUs: {
     ru: '',
     uz: ''
   },
-  adBlockTitle: '',
+  adBlockTitle: { ru: '', uz: '' },
   adBlockLink: '',
   showAdBlock: false,
   adBlockImage: '',
@@ -136,6 +151,10 @@ const defaultSettings: SiteSettings = {
     ru: 'Мы создаем доступную среду, чтобы каждый человек чувствовал себя комфортно и безопасно.',
     uz: 'Biz har bir inson o\'zini qulay va xavfsiz his qilishi uchun ochiq muhit yaratamiz.'
   },
+  aboutStats: {
+    years: 10,
+    clients: 500
+  },
   payLaterButtonText: {
     ru: 'Оплачу позже (Ожидает подтверждения)',
     uz: 'Keyinroq to\'layman (Tasdiqlash kutilmoqda)'
@@ -176,7 +195,23 @@ export function SiteSettingsProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
 
-    return unsubscribe;
+    const unsubscribeTelegram = onSnapshot(doc(db, 'settings', 'telegram'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setSettings(prev => ({
+          ...prev,
+          tgSettings: {
+            token: data.token || '',
+            chatIds: data.chatIds || ''
+          }
+        }));
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      unsubscribeTelegram();
+    };
   }, []);
 
   // Apply primary color to CSS variables

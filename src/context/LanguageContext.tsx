@@ -14,8 +14,8 @@ const translations: Record<string, Record<Language, string>> = {
     uz: 'Bosh sahifa',
   },
   'nav.products': {
-    ru: 'Продукция',
-    uz: 'Mahsulotlar',
+    ru: 'Каталог',
+    uz: 'Katalog',
   },
   'nav.about': {
     ru: 'О нас',
@@ -35,7 +35,7 @@ const translations: Record<string, Record<Language, string>> = {
   },
   'status.need_to_pay': {
     ru: 'Ожидает оплаты',
-    uz: 'To\'lov kutilmoqda',
+    uz: "To'lov kutilmoqda",
   },
   'status.pending': {
     ru: 'Ожидает подтверждения',
@@ -66,8 +66,8 @@ const translations: Record<string, Record<Language, string>> = {
     uz: "Biz bilan bog'lanish",
   },
   'products.title': {
-    ru: 'Наша продукция',
-    uz: 'Bizning mahsulotlar',
+    ru: 'Каталог товаров',
+    uz: 'Mahsulotlar katalogi',
   },
   'products.price': {
     ru: 'сум',
@@ -116,6 +116,34 @@ const translations: Record<string, Record<Language, string>> = {
   'btn.add_to_cart': {
     ru: 'В корзину',
     uz: 'Savatchaga',
+  },
+  'checkout.delivery': {
+    ru: 'Доставка',
+    uz: 'Yetkazib berish',
+  },
+  'checkout.pickup': {
+    ru: 'Самовывоз',
+    uz: 'Olib ketish',
+  },
+  'location.error': {
+    ru: 'Не удалось получить местоположение. Проверьте разрешения в браузере или введите адрес вручную.',
+    uz: 'Joylashuvni aniqlab bo\'lmadi. Brauzer ruxsatlarini tekshiring yoki manzilni qo\'lda kiriting.',
+  },
+  'consultation.success_title': {
+    ru: 'Успешно отправлено',
+    uz: 'Muvaffaqiyatli yuborildi',
+  },
+  'consultation.success_msg': {
+    ru: 'Вы успешно оставили заявку! Мы свяжемся с вами в ближайшее время.',
+    uz: 'Siz muvaffaqiyatli ariza qoldirdingiz! Tez orada siz bilan bog\'lanamiz.',
+  },
+  'consultation.sending': {
+    ru: 'Отправка...',
+    uz: 'Yuborilmoqda...',
+  },
+  'consultation.wait': {
+    ru: 'Пожалуйста, подождите',
+    uz: 'Iltimos, kuting',
   }
 };
 

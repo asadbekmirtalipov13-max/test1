@@ -83,19 +83,26 @@ export default function UserCabinet() {
     return () => clearInterval(timer);
   }, []);
 
+  const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (confirmCancelId) {
+      const timer = setTimeout(() => setConfirmCancelId(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [confirmCancelId]);
+
   const handleCancelOrder = async (orderId: string) => {
-    if (!window.confirm(language === 'ru' ? 'Вы уверены, что хотите отменить заказ?' : 'Haqiqatdan ham buyurtmani bekor qilmoqchimisiz?')) return;
     try {
       await updateDoc(doc(db, 'orders', orderId), {
         status: 'cancelled',
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
+        siteComment: language === 'ru' ? 'Отменено пользователем' : 'Foydalanuvchi tomonidan bekor qilindi'
       });
-      alert(language === 'ru' ? 'Заказ отменен' : 'Buyurtma bekor qilindi');
-      // Update local state
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'cancelled' } : o));
+      setConfirmCancelId(null);
     } catch (error) {
       console.error('Error cancelling order:', error);
-      alert('Error: ' + error);
     }
   };
 
@@ -158,14 +165,12 @@ export default function UserCabinet() {
   useEffect(() => {
     const fetchOrders = async () => {
       if (!user) return;
-      console.log("Fetching orders for user:", user.uid);
       try {
         const q = query(
           collection(db, 'orders'),
           where('userId', '==', user.uid)
         );
         const snapshot = await getDocs(q);
-        console.log("Found orders:", snapshot.size);
         const fetchedOrders: Order[] = [];
         snapshot.forEach((doc) => {
           const data = doc.data();
@@ -212,7 +217,7 @@ export default function UserCabinet() {
         >
           <ChevronLeft className="w-5 h-5" />
         </button>
-        <h1 className="text-3xl font-black text-gray-900">
+        <h1 className="text-3xl font-black text-blue-950">
           {language === 'ru' ? 'Личный кабинет' : 'Shaxsiy kabinet'}
         </h1>
       </div>
@@ -235,7 +240,7 @@ export default function UserCabinet() {
                       transition={{ repeat: Infinity, duration: 1, ease: "linear" }} 
                       className="w-10 h-10 border-4 border-white/20 border-t-white rounded-full mb-2" 
                     />
-                    <span className="text-[10px] font-black uppercase text-white tracking-widest animate-pulse">
+                    <span className="text-[10px] font-black uppercase text-white tracking-wider animate-pulse">
                       {language === 'ru' ? 'Загрузка...' : 'Yuklanmoqda...'}
                     </span>
                   </div>
@@ -244,7 +249,7 @@ export default function UserCabinet() {
                 {isEditingProfile && !isUploading && (
                   <label className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-all duration-300 backdrop-blur-[2px] z-10">
                     <Camera className="w-8 h-8 text-white mb-2" />
-                    <span className="text-[10px] font-black uppercase text-white tracking-widest text-center px-2">
+                    <span className="text-[10px] font-black uppercase text-white tracking-wider text-center px-2">
                        {language === 'ru' ? 'Сменить фото' : 'Rasmni o\'zgartirish'}
                     </span>
                     <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
@@ -314,19 +319,19 @@ export default function UserCabinet() {
         </div>
       </div>
 
-      <h2 className="text-2xl font-bold mb-6 text-gray-900">
+      <h2 className="text-2xl font-bold mb-6 text-blue-950">
         {language === 'ru' ? 'Мои заказы' : 'Mening buyurtmalarim'}
       </h2>
 
       {loading ? (
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 text-blue-400">
           <div className="animate-spin w-8 h-8 rounded-full border-t-2 border-primary mx-auto mb-4"></div>
           {language === 'ru' ? 'Загрузка...' : 'Yuklanmoqda...'}
         </div>
       ) : orders.length === 0 ? (
         <div className="text-center py-16 bg-white rounded-2xl border border-gray-200">
-          <Package className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-          <p className="text-lg text-gray-500 font-medium">
+          <Package className="w-16 h-16 mx-auto text-blue-700 mb-4" />
+          <p className="text-lg text-blue-400 font-medium">
             {language === 'ru' ? 'У вас пока нет заказов' : 'Sizda hozircha buyurtmalar yo\'q'}
           </p>
         </div>
@@ -353,7 +358,7 @@ export default function UserCabinet() {
                     <span className="font-mono font-bold bg-gray-100 text-gray-800 px-3 py-1 rounded-lg text-sm">
                       {order.code}
                     </span>
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-blue-400">
                       {new Date(order.createdAt).toLocaleDateString(language === 'ru' ? 'ru' : 'uz-UZ', {
                         day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
                       })}
@@ -361,13 +366,13 @@ export default function UserCabinet() {
                   </div>
                   
                   <div className="flex flex-wrap gap-2 mb-4">
-                    <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 border ${statusInfo.color}`}>
+                    <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 border ${statusInfo.color}`}>
                       <StatusIcon className="w-3.5 h-3.5" />
                       {statusInfo[language as 'ru' | 'uz']}
                     </div>
                     <button 
                       onClick={() => setShowOrderDetails(showOrderDetails === order.id ? null : order.id)}
-                      className="px-4 py-2 rounded-full text-[12px] font-black uppercase tracking-widest flex items-center gap-2 border-2 border-primary/20 bg-primary/5 text-primary hover:bg-primary hover:text-white transition-all shadow-sm group/btn"
+                      className="px-4 py-2 rounded-full text-[12px] font-black uppercase tracking-wider flex items-center gap-2 border-2 border-primary/20 bg-primary/5 text-primary hover:bg-primary hover:text-white transition-all shadow-sm group/btn"
                     >
                       <Package className="w-4 h-4" />
                       {language === 'ru' ? 'Информация о заказе' : 'Buyurtma ma\'lumotlari'}
@@ -389,15 +394,15 @@ export default function UserCabinet() {
                         className="overflow-hidden border-l-2 border-gray-100 pl-4 mb-6"
                       >
                         <div className="p-4 bg-gray-50/50 rounded-2xl space-y-4">
-                          <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-2">
+                          <h4 className="text-xs font-black uppercase tracking-wider text-blue-500 mb-2">
                             {language === 'ru' ? 'Состав заказа' : 'Buyurtma tarkibi'}
                           </h4>
                           {order.items.map((item, idx) => (
                             <div key={idx} className="flex items-center gap-3 bg-white p-3 rounded-xl shadow-sm border border-gray-100">
                               <img src={item.image || 'https://via.placeholder.com/50'} alt="" className="w-12 h-12 object-cover rounded-lg border border-gray-100" />
                               <div className="flex-1 min-w-0">
-                                <p className="font-black text-sm text-gray-900 truncate">{item.name?.[language as 'ru' | 'uz'] || (language === 'ru' ? 'Товар' : 'Mahsulot')}</p>
-                                <p className="text-xs text-gray-500 font-bold flex items-center gap-2">
+                                <p className="font-black text-sm text-blue-950 truncate">{item.name?.[language as 'ru' | 'uz'] || (language === 'ru' ? 'Товар' : 'Mahsulot')}</p>
+                                <p className="text-xs text-blue-400 font-bold flex items-center gap-2">
                                   {item.code && <span className="bg-gray-100 px-1 rounded text-[9px]">{item.code}</span>}
                                   {item.quantity} x {item.price?.toLocaleString()} UZS
                                 </p>
@@ -410,12 +415,12 @@ export default function UserCabinet() {
                           
                           {order.promocode && (
                             <div className="p-3 bg-green-50 border border-green-100 rounded-xl flex justify-between items-center">
-                              <span className="text-xs font-black text-green-700 uppercase tracking-widest">{language === 'ru' ? 'Промокод' : 'Promokod'}</span>
+                              <span className="text-xs font-black text-green-700 uppercase tracking-wider">{language === 'ru' ? 'Промокод' : 'Promokod'}</span>
                               <span className="text-xs font-black text-green-700 font-mono">{order.promocode}</span>
                             </div>
                           )}
 
-                          <div className="pt-2 flex justify-between text-[10px] font-black uppercase tracking-widest text-gray-400">
+                          <div className="pt-2 flex justify-between text-[10px] font-black uppercase tracking-wider text-blue-500">
                             <span>{language === 'ru' ? 'Сумма без скидки' : 'Chegirmasiz summa'}</span>
                             <span>{order.subtotal?.toLocaleString()} UZS</span>
                           </div>
@@ -425,29 +430,43 @@ export default function UserCabinet() {
                   </AnimatePresence>
 
                   {order.status === 'need_to_pay' && (
-                    <button 
-                      onClick={async () => {
-                        const confirmMsg = language === 'ru' 
-                          ? 'Вы уверены, что хотите отменить этот заказ?' 
-                          : 'Haqiqatan ham ushbu buyurtmani bekor qilmoqchimisiz?';
-                        if (window.confirm(confirmMsg)) {
-                          try {
-                            await updateDoc(doc(db, 'orders', order.id), { 
-                              status: 'cancelled',
-                              siteComment: language === 'ru' ? 'Отменено пользователем' : 'Foydalanuvchi tomonidan bekor qilindi'
-                            });
-                            setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'cancelled' } : o));
-                            alert(language === 'ru' ? 'Заказ отменен' : 'Buyurtma bekor qilindi');
-                          } catch (err) {
-                            console.error('Error cancelling order:', err);
-                            alert('Error cancelling order');
-                          }
-                        }
-                      }}
-                      className="w-full py-3 border-2 border-gray-100 text-gray-400 rounded-xl font-black uppercase tracking-widest text-xs hover:bg-red-50 hover:text-red-500 hover:border-red-100 transition-all mb-4"
-                    >
-                      {language === 'ru' ? 'Отменить заказ' : 'Buyurtmani bekor qilish'}
-                    </button>
+                    <div className="mb-4">
+                      <AnimatePresence mode="wait">
+                        {confirmCancelId === order.id ? (
+                          <motion.div
+                            key="confirm"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                            className="flex items-center gap-2"
+                          >
+                            <button 
+                              onClick={() => handleCancelOrder(order.id)}
+                              className="flex-1 py-3 bg-red-600 text-white rounded-xl font-black uppercase tracking-wider text-xs hover:bg-red-700 transition-all shadow-md"
+                            >
+                              {language === 'ru' ? 'Да, отменить' : 'Ha, bekor qilish'}
+                            </button>
+                            <button 
+                              onClick={() => setConfirmCancelId(null)}
+                              className="px-6 py-3 bg-gray-100 text-gray-500 rounded-xl font-black uppercase tracking-wider text-xs hover:bg-gray-200 transition-all"
+                            >
+                              {language === 'ru' ? 'Нет' : 'Yo\'q'}
+                            </button>
+                          </motion.div>
+                        ) : (
+                          <motion.button 
+                            key="btn"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setConfirmCancelId(order.id)}
+                            className="w-full py-3 border-2 border-gray-100 text-blue-500 rounded-xl font-black uppercase tracking-wider text-xs hover:bg-red-50 hover:text-red-500 hover:border-red-100 transition-all"
+                          >
+                            {language === 'ru' ? 'Отменить заказ' : 'Buyurtmani bekor qilish'}
+                          </motion.button>
+                        )}
+                      </AnimatePresence>
+                    </div>
                   )}
 
                   {order.status === 'need_to_pay' && (
@@ -493,7 +512,7 @@ export default function UserCabinet() {
                                 }
                               }
                             }}
-                            className="w-full py-3 bg-primary text-white rounded-xl font-black uppercase tracking-widest text-sm shadow-md hover:shadow-lg transition-all"
+                            className="w-full py-3 bg-primary text-white rounded-xl font-black uppercase tracking-wider text-sm shadow-md hover:shadow-lg transition-all"
                           >
                             {language === 'ru' ? 'Оплатить заказ' : 'Buyurtmani to\'lash'}
                           </button>
@@ -507,7 +526,7 @@ export default function UserCabinet() {
                                 className="mt-4 p-5 bg-white border-2 border-primary/20 rounded-3xl shadow-xl space-y-4"
                               >
                                 <div className="flex justify-between items-center mb-2">
-                                  <h4 className="text-sm font-black uppercase text-gray-900 tracking-wider">
+                                  <h4 className="text-sm font-black uppercase text-blue-950 tracking-wider">
                                     {language === 'ru' ? 'Подтверждение оплаты' : 'To\'lovni tasdiqlash'}
                                   </h4>
                                   <button onClick={() => {
@@ -515,14 +534,14 @@ export default function UserCabinet() {
                                     setPaymentStep('methods');
                                     setSelectedPMForOrder(null);
                                     setUploadedImageUrl(null);
-                                  }} className="p-1 text-gray-400 hover:text-gray-600">
+                                  }} className="p-1 text-blue-500 hover:text-gray-600">
                                     <XCircle className="w-5 h-5" />
                                   </button>
                                 </div>
 
                                 {paymentStep === 'methods' && (
                                   <div className="space-y-3">
-                                    <p className="text-[10px] font-black uppercase text-gray-400 text-center tracking-widest">
+                                    <p className="text-[10px] font-black uppercase text-blue-500 text-center tracking-wider">
                                       {language === 'ru' ? 'Выберите способ оплаты:' : 'To\'lov usulini tanlang:'}
                                     </p>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -535,8 +554,8 @@ export default function UserCabinet() {
                                           }}
                                           className="p-3 border-2 border-gray-100 rounded-2xl hover:border-primary hover:bg-blue-50 transition-all text-left"
                                         >
-                                          <p className="text-xs font-black text-gray-900 mb-1">{pm.name}</p>
-                                          <p className="text-[10px] text-gray-500 truncate">{pm.description?.[language as 'ru' | 'uz']}</p>
+                                          <p className="text-xs font-black text-blue-950 mb-1">{pm.name}</p>
+                                          <p className="text-[10px] text-blue-400 truncate">{pm.description?.[language as 'ru' | 'uz']}</p>
                                         </button>
                                       ))}
                                     </div>
@@ -547,12 +566,12 @@ export default function UserCabinet() {
                                   <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
                                     <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
                                       <div className="flex justify-between items-start mb-2">
-                                        <span className="text-[10px] font-black uppercase text-blue-600 tracking-widest">{selectedPMForOrder.name}</span>
-                                        <button onClick={() => setPaymentStep('methods')} className="text-[10px] font-black text-gray-400 hover:text-gray-600">
+                                        <span className="text-[10px] font-black uppercase text-blue-600 tracking-wider">{selectedPMForOrder.name}</span>
+                                        <button onClick={() => setPaymentStep('methods')} className="text-[10px] font-black text-blue-500 hover:text-gray-600">
                                           {language === 'ru' ? 'Изменить' : 'O\'zgartirish'}
                                         </button>
                                       </div>
-                                      <p className="text-sm font-bold text-gray-900 break-words mb-2 whitespace-pre-wrap">{selectedPMForOrder.description?.[language as 'ru' | 'uz']}</p>
+                                      <p className="text-sm font-bold text-blue-950 break-words mb-2 whitespace-pre-wrap">{selectedPMForOrder.description?.[language as 'ru' | 'uz']}</p>
                                       <p className="text-[11px] text-blue-700 italic border-t border-blue-100 pt-2 mt-2">
                                         {language === 'ru' 
                                           ? 'Переведите указанную сумму по реквизитам выше.' 
@@ -562,7 +581,7 @@ export default function UserCabinet() {
 
                                     <button 
                                       onClick={() => setPaymentStep('upload')}
-                                      className="w-full py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg hover:bg-blue-700 transition-all transform hover:scale-[1.02]"
+                                      className="w-full py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-wider text-xs shadow-lg hover:bg-blue-700 transition-all transform hover:scale-[1.02]"
                                       style={{ backgroundColor: selectedPMForOrder.btnColor }}
                                     >
                                       {selectedPMForOrder.btnText?.[language as 'ru' | 'uz'] || (language === 'ru' ? 'Я оплатил' : 'Men to\'ladim')}
@@ -573,10 +592,10 @@ export default function UserCabinet() {
                                 {paymentStep === 'upload' && selectedPMForOrder && (
                                   <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2">
                                     <div className="space-y-2">
-                                      <p className="text-[11px] font-black uppercase text-gray-900 tracking-widest">
+                                      <p className="text-[11px] font-black uppercase text-blue-950 tracking-wider">
                                         {language === 'ru' ? 'Шаг 2: Загрузите подтверждение' : '2-qadam: Tasdiqni yuklang'}
                                       </p>
-                                      <p className="text-[10px] text-gray-500 font-medium leading-relaxed">
+                                      <p className="text-[10px] text-blue-400 font-medium leading-relaxed">
                                         {language === 'ru' 
                                           ? 'Пожалуйста, прикрепите скриншот или фото чека об оплате. Это ускорит подтверждение заказа.' 
                                           : 'Iltimos, to\'lov chekining skrinshotini yoki fotosuratini biriktiring. Bu buyurtmani tasdiqlashni tezlashtiradi.'}
@@ -627,7 +646,7 @@ export default function UserCabinet() {
 
                                     <button 
                                       onClick={() => setPaymentStep('instructions')}
-                                      className="w-full py-2 text-[10px] font-black text-gray-400 hover:text-gray-600 uppercase tracking-widest"
+                                      className="w-full py-2 text-[10px] font-black text-blue-500 hover:text-gray-600 uppercase tracking-wider"
                                     >
                                       {language === 'ru' ? 'Назад к инструкциям' : 'Ko\'rsatmalarga qaytish'}
                                     </button>
@@ -641,7 +660,7 @@ export default function UserCabinet() {
                                           <img src={uploadedImageUrl || undefined} alt="Check" className="w-full h-full object-cover" />
                                        </div>
                                        <div className="text-center">
-                                          <p className="text-xs font-black text-green-800 uppercase tracking-widest">{language === 'ru' ? 'Чек загружен!' : 'Chek yuklandi!'}</p>
+                                          <p className="text-xs font-black text-green-800 uppercase tracking-wider">{language === 'ru' ? 'Чек загружен!' : 'Chek yuklandi!'}</p>
                                           <button onClick={() => { setUploadedImageUrl(null); setPaymentStep('upload'); }} className="text-[10px] font-bold text-green-600 hover:underline">
                                              {language === 'ru' ? 'Загрузить другой' : 'Boshqasini yuklash'}
                                           </button>
@@ -668,7 +687,7 @@ export default function UserCabinet() {
                                           alert("Error confirming payment");
                                         }
                                       }}
-                                      className="w-full py-4 bg-green-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg hover:bg-green-700 transition-all transform hover:scale-[1.02]"
+                                      className="w-full py-4 bg-green-600 text-white rounded-2xl font-black uppercase tracking-wider text-xs shadow-lg hover:bg-green-700 transition-all transform hover:scale-[1.02]"
                                     >
                                       {language === 'ru' ? 'Завершить подтверждение' : 'Tasdiqlashni yakunlash'}
                                     </button>
@@ -708,7 +727,7 @@ export default function UserCabinet() {
                             href={siteSettings.pickupSettings?.mapUrl} 
                             target="_blank" 
                             rel="noopener noreferrer" 
-                            className="inline-flex items-center gap-2 text-xs font-black text-white bg-green-600 px-4 py-2 rounded-lg hover:bg-green-700 uppercase tracking-widest shadow-sm"
+                            className="inline-flex items-center gap-2 text-xs font-black text-white bg-green-600 px-4 py-2 rounded-lg hover:bg-green-700 uppercase tracking-wider shadow-sm"
                           >
                             <Link2 className="w-3 h-3" />
                             {language === 'ru' ? 'Открыть на карте' : 'Xaritada ochish'}
@@ -718,7 +737,7 @@ export default function UserCabinet() {
                   )}
                   
                   <div className="text-sm text-gray-600 mb-4">
-                    {language === 'ru' ? 'Товаров в заказе:' : 'Buyurtmadagi tovarlar:'} <span className="font-bold text-gray-900">{order.items.length}</span>
+                    {language === 'ru' ? 'Товаров в заказе:' : 'Buyurtmadagi tovarlar:'} <span className="font-bold text-blue-950">{order.items.length}</span>
                     {order.address && (
                       <div className="mt-3 flex gap-2 items-start text-xs font-bold text-gray-700 bg-gray-50 p-3 rounded-xl border border-gray-100">
                         <Truck className="w-4 h-4 text-primary shrink-0" />
@@ -729,7 +748,7 @@ export default function UserCabinet() {
 
                   {/* Order Items List */}
                   <div className="mt-4 p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                    <p className="text-[10px] font-black uppercase text-gray-400 mb-3 tracking-widest flex items-center gap-2">
+                    <p className="text-[10px] font-black uppercase text-blue-500 mb-3 tracking-wider flex items-center gap-2">
                        <ShoppingCart className="w-3 h-3" />
                        {language === 'ru' ? 'Информация о товарах:' : 'Tovar haqida ma\'lumot:'}
                     </p>
@@ -742,7 +761,7 @@ export default function UserCabinet() {
                             className="w-10 h-10 rounded-lg object-cover bg-gray-50 flex-shrink-0" 
                           />
                           <div className="min-w-0 flex-1">
-                            <p className="text-xs font-bold text-gray-900 truncate">
+                            <p className="text-xs font-bold text-blue-950 truncate">
                                {typeof item.name === 'object' && item.name ? (item.name as any)[language] : (item.name || '')}
                             </p>
                             <p className="text-[10px] font-black uppercase text-primary tracking-tighter flex items-center gap-2">
@@ -751,7 +770,7 @@ export default function UserCabinet() {
                                {item.discount > 0 && <span className="text-green-600 ml-1">(-{item.discount}%)</span>}
                             </p>
                           </div>
-                          <div className="text-right text-xs font-black text-gray-900">
+                          <div className="text-right text-xs font-black text-blue-950">
                             {(item.price * item.quantity).toLocaleString()}
                           </div>
                         </div>
@@ -761,7 +780,7 @@ export default function UserCabinet() {
 
                   {order.readinessTime && order.status === 'confirmed' && (
                     <div className="bg-blue-50 border border-blue-100 p-4 rounded-2xl mb-4">
-                      <p className="text-xs font-bold text-blue-700 uppercase tracking-widest mb-1">
+                      <p className="text-xs font-bold text-blue-700 uppercase tracking-wider mb-1">
                         {language === 'ru' ? 'Ориентировочное время готовности:' : 'Taxminiy tayyor bo\'lish vaqti:'}
                       </p>
                       <p className="text-sm font-black text-blue-900">
@@ -772,7 +791,7 @@ export default function UserCabinet() {
 
                   {order.siteComment && (
                     <div className="bg-gray-50 border border-gray-100 p-3 rounded-lg mb-4 italic text-sm text-gray-700">
-                      <p className="text-[10px] font-black uppercase text-gray-400 not-italic mb-1">
+                      <p className="text-[10px] font-black uppercase text-blue-500 not-italic mb-1">
                         {language === 'ru' ? 'Комментарий магазина:' : 'Do\'kon sharhi:'}
                       </p>
                       "{order.siteComment}"
@@ -781,10 +800,10 @@ export default function UserCabinet() {
                 </div>
                 
                 <div className="flex flex-col justify-end md:items-end border-t md:border-t-0 md:border-l border-gray-100 pt-4 md:pt-0 md:pl-6 min-w-[200px] relative">
-                  <div className="text-sm text-gray-500 mb-1">
+                  <div className="text-sm text-blue-400 mb-1">
                     {language === 'ru' ? 'Итоговая сумма:' : 'Jami summa:'}
                   </div>
-                  <div className="text-2xl font-black text-gray-900">
+                  <div className="text-2xl font-black text-blue-950">
                     {order.total?.toLocaleString()} UZS
                   </div>
                   {order.discount > 0 && (
@@ -793,7 +812,7 @@ export default function UserCabinet() {
                     </div>
                   )}
                   <div className="mt-4 md:mt-auto flex justify-end">
-                    {showOrderDetails === order.id ? <ChevronUp className="w-5 h-5 text-primary" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+                    {showOrderDetails === order.id ? <ChevronUp className="w-5 h-5 text-primary" /> : <ChevronDown className="w-5 h-5 text-blue-500" />}
                   </div>
                 </div>
               </div>

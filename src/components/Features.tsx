@@ -29,10 +29,10 @@ export default function Features() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="lg:text-center">
           <h2 className="text-base text-blue-600 font-semibold tracking-wide uppercase">Наши преимущества</h2>
-          <p className="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+          <p className="mt-2 text-3xl leading-8 font-extrabold tracking-tight text-blue-950 sm:text-4xl">
             Профессиональный подход к доступной среде
           </p>
-          <p className="mt-4 max-w-2xl text-xl text-gray-500 lg:mx-auto">
+          <p className="mt-4 max-w-2xl text-xl text-blue-400 lg:mx-auto">
             Как производитель, мы гарантируем лучшие цены и возможность реализации нестандартных проектов любой сложности.
           </p>
         </div>
@@ -45,7 +45,7 @@ export default function Features() {
                   <div className="absolute flex items-center justify-center h-12 w-12 rounded-md bg-blue-600 text-white shadow-sm">
                     <feature.icon className="h-6 w-6" aria-hidden="true" />
                   </div>
-                  <p className="ml-16 text-lg leading-6 font-bold text-gray-900">{feature.name}</p>
+                  <p className="ml-16 text-lg leading-6 font-bold text-blue-950">{feature.name}</p>
                 </dt>
                 <dd className="mt-2 ml-16 text-base text-gray-600">{feature.description}</dd>
               </div>

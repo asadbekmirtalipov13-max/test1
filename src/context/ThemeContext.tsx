@@ -62,7 +62,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 50 }}
-            className="fixed bottom-6 right-6 z-[1000] bg-yellow-400 text-yellow-900 px-6 py-3 rounded-lg shadow-xl font-bold flex items-center gap-3"
+            className="fixed bottom-28 left-6 md:bottom-8 z-[1000] bg-yellow-400 text-yellow-900 px-6 py-3 rounded-lg shadow-xl font-bold flex items-center gap-3 pointer-events-none"
           >
             <Eye className="w-5 h-5" />
             {language === 'ru' ? 'Включен режим для слабовидящих' : 'Maxsus rejim yoqildi'}

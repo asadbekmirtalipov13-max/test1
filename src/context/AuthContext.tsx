@@ -29,28 +29,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(currentUser);
       if (currentUser) {
         try {
-          // Check if user exists in DB
           const userRef = doc(db, 'users', currentUser.uid);
           const userSnap = await getDoc(userRef);
 
           let role = 'client';
-          // Default admin check based on email
-          if (currentUser.email === 'asadbekmirtalipov13@gmail.com' && currentUser.emailVerified) {
+          if (currentUser.email === 'asadbekmirtalipov13@gmail.com') {
             role = 'admin';
+          }
+
+          let providerId = 'password';
+          if (currentUser.providerData && currentUser.providerData.length > 0) {
+            providerId = currentUser.providerData[0].providerId;
           }
 
           if (!userSnap.exists()) {
             await setDoc(userRef, {
               uid: currentUser.uid,
-              email: currentUser.email?.toLowerCase(),
-              displayName: currentUser.displayName,
-              photoURL: currentUser.photoURL,
+              email: currentUser.email?.toLowerCase() || '',
+              displayName: currentUser.displayName || 'User',
+              photoURL: currentUser.photoURL || '',
               role: role,
+              provider: providerId,
+              isBanned: false,
               createdAt: new Date().toISOString()
             });
             setIsAdmin(role === 'admin');
           } else {
-            setIsAdmin(userSnap.data().role === 'admin' || role === 'admin');
+            const userData = userSnap.data();
+            if (userData.isBanned) {
+               await signOut(auth);
+               setUser(null);
+               setIsAdmin(false);
+               setLoading(false);
+               alert("Ваш аккаунт заблокирован.");
+               return;
+            }
+            setIsAdmin(userData.role === 'admin' || role === 'admin');
           }
         } catch (error) {
           console.error("Error fetching user role:", error);
@@ -71,11 +85,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await signInWithPopup(auth, provider);
     } catch (error: any) {
       console.error("Error signing in with Google", error);
-      if (error.code === 'auth/popup-blocked') {
-        alert('Пожалуйста, разрешите всплывающие окна в браузере для входа.');
-      } else if (error.code !== 'auth/popup-closed-by-user') {
-        alert('Ошибка при входе. Попробуйте еще раз. Если проблема не решается, попробуйте отключить блокировщики рекламы или зайти с другого браузера/устройства.');
-      }
+      throw error;
     }
   };
 

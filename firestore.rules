@@ -7,15 +7,9 @@ service cloud.firestore {
     }
 
     // HELPER FUNCTIONS
-    function isValidId(id) { 
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
-    }
-    function incoming() { return request.resource.data; }
-    function existing() { return resource.data; }
     function isSignedIn() { return request.auth != null; }
     
     function isAdmin() {
-      // Global admin check
       return isSignedIn() && (
         request.auth.token.email == "asadbekmirtalipov13@gmail.com" ||
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
@@ -27,19 +21,15 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // ENTITY VALIDATIONS
-    function isValidUser(data) {
-      return data.keys().hasAll(['uid', 'email', 'role']) &&
-             data.uid is string &&
-             data.email is string &&
-             data.role in ['admin', 'client', 'user'];
+    // Connection test
+    match /test/connection {
+      allow read: if true;
     }
 
     // RULES
     match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) && isValidUser(incoming());
-      allow update: if isAdmin() || (isOwner(userId) && incoming().role == existing().role && isValidUser(incoming()));
+      allow read, update: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId);
     }
 
     match /products/{productId} {
@@ -52,22 +42,47 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /news/{newsId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /partners/{partnerId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /branches/{branchId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /updates/{updateId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     match /settings/{docId} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
     match /orders/{orderId} {
-      allow read: if isAdmin() || (isSignedIn() && existing().userId == request.auth.uid);
-      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow read: if isAdmin() || (isSignedIn() && (resource != null && resource.data.userId == request.auth.uid));
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
     }
 
     match /promocodes/{promoCode} {
       allow read: if true;
-      allow update: if isAdmin() || (isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['usedCount']));
       allow write: if isAdmin();
+      allow update: if isAdmin() || (isSignedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usedCount']));
+    }
+
+    match /help_requests/{requestId} {
+      allow read: if isAdmin();
+      allow create: if true;
+      allow update, delete: if isAdmin();
     }
   }
 }
